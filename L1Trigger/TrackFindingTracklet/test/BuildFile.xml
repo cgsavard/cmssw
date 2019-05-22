@@ -14,7 +14,8 @@
     <use   name="Geometry/CaloGeometry"/>
     <use   name="DataFormats/L1TrackTrigger"/>
     <use   name="root"/>
-    <use   name="CommonTools/BaseParticlePropagator"/>
+    <use   name="FastSimulation/Particle"/>
+    <use   name="FastSimulation/BaseParticlePropagator"/>
     <use   name="heppdt"/>
     <use   name="SimTracker/TrackerHitAssociation"/>
     <use   name="SimTracker/TrackTriggerAssociation"/>
@@ -42,7 +43,7 @@
     <use   name="CondFormats/DataRecord"/>
     <use   name="RecoTauTag/TauTagTools"/>
     <use   name="RecoTracker/TkSeedGenerator"/>
-  <use   name="CommonTools/UtilAlgos"/>
+    <use   name="CommonTools/UtilAlgos"/>
     <use   name="DataFormats/Phase2TrackerDigi"/>
     <flags   CXXFLAGS="-g -O0"/>
   </library>
