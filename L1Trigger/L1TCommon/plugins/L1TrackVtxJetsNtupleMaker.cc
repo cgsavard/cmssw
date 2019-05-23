@@ -37,6 +37,7 @@
 //CS add
 #include "DataFormats/L1TrackTrigger/interface/L1TkJetParticle.h"
 #include "DataFormats/L1TVertex/interface/Vertex.h"
+//#include "DataFormats/L1TVertex/interface/VertexCollection.h"
 #include "DataFormats/L1TrackTrigger/interface/L1TkJetParticleFwd.h"
 
 ////////////////////////////
@@ -144,7 +145,7 @@ private:
   edm::EDGetTokenT< std::vector< TrackingVertex > > TrackingVertexToken_;
   //CS added
   edm::EDGetTokenT< L1TkJetParticleCollection >L1TwoLayerTkJetsToken_;
-  edm::EDGetTokenT< Vertex >L1VertexToken_;
+  edm::EDGetTokenT< VertexCollection >L1VertexToken_;
 
 
   //-----------------------------------------------------------------------------------------------
@@ -189,6 +190,8 @@ private:
   std::vector<int>*   m_tp_nstub;
   std::vector<int>*   m_tp_eventid;
   std::vector<int>*   m_tp_charge;
+  std::vector<int>*   m_tp_nmu;
+  std::vector<int>*   m_tp_nel;
 
   // *L1 track* properties if m_tp_nmatch > 0
   std::vector<float>* m_matchtrk_pt;
@@ -226,6 +229,7 @@ private:
   std::vector<float>* m_2ltrkjet_phi;
   std::vector<float>* m_2ltrkjet_eta;
   std::vector<float>* m_2ltrkjet_pt;
+  //std::vector<float>* m_2ltrkhet_ht;
   std::vector<int>* m_2ltrkjet_ntracks;
   std::vector<int>* m_2ltrkjet_ndtrk;
   std::vector<int>* m_2ltrkjet_nttrk;
@@ -280,7 +284,7 @@ L1TrackVtxJetsNtupleMaker::L1TrackVtxJetsNtupleMaker(edm::ParameterSet const& iC
   TrackingParticleToken_ = consumes< std::vector< TrackingParticle > >(TrackingParticleInputTag);
   TrackingVertexToken_ = consumes< std::vector< TrackingVertex > >(TrackingVertexInputTag);
   //CS add
-  L1VertexToken_=consumes<Vertex>(RecoVertexInputTag);
+  L1VertexToken_=consumes<VertexCollection>(RecoVertexInputTag);
   L1TwoLayerTkJetsToken_=consumes<L1TkJetParticleCollection>(TwoLayerTkJetInputTag);
 
 }
@@ -346,6 +350,8 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   m_tp_nstub  = new std::vector<int>;
   m_tp_eventid = new std::vector<int>;
   m_tp_charge = new std::vector<int>;
+  m_tp_nmu = new std::vector<int>;
+  m_tp_nel = new std::vector<int>;
 
   m_matchtrk_pt    = new std::vector<float>;
   m_matchtrk_eta   = new std::vector<float>;
@@ -382,6 +388,7 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   m_2ltrkjet_phi = new std::vector<float>;
   m_2ltrkjet_p = new std::vector<float>;
   m_2ltrkjet_pt = new std::vector<float>;
+  //m_2ltrkjet_ht = new std::vector<float>;
   m_2ltrkjet_ntracks=new std::vector<int>;
   m_2ltrkjet_ndtrk=new std::vector<int>;
   m_2ltrkjet_nttrk=new std::vector<int>;
@@ -427,6 +434,8 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("tp_nstub", &m_tp_nstub);
   eventTree->Branch("tp_eventid",&m_tp_eventid);
   eventTree->Branch("tp_charge",&m_tp_charge);
+  eventTree->Branch("tp_nmu", &m_tp_nmu);
+  eventTree->Branch("tp_nel", &m_tp_nel);
 
   eventTree->Branch("matchtrk_pt",      &m_matchtrk_pt);
   eventTree->Branch("matchtrk_eta",     &m_matchtrk_eta);
@@ -441,6 +450,7 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("2ltrkjet_vz", &m_2ltrkjet_vz);
   eventTree->Branch("2ltrkjet_p", &m_2ltrkjet_p);
   eventTree->Branch("2ltrkjet_pt", &m_2ltrkjet_pt);
+  //eventTree->Branch("2ltrkjet_ht", &m_2ltrkjet_ht);
   eventTree->Branch("2ltrkjet_phi", &m_2ltrkjet_phi);
   eventTree->Branch("2ltrkjet_ntracks", &m_2ltrkjet_ntracks);
 
@@ -521,6 +531,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_tp_nstub->clear();
   m_tp_eventid->clear();
   m_tp_charge->clear();
+  m_tp_nmu->clear();
+  m_tp_nel->clear();
 
   m_matchtrk_pt->clear();
   m_matchtrk_eta->clear();
@@ -536,6 +548,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_2ltrkjet_vz->clear();
   m_2ltrkjet_phi->clear();
   m_2ltrkjet_p->clear();
+  //m_2ltrkjet_ht->clear();
   m_2ltrkjet_ntracks->clear();
   m_2ltrkjet_ndtrk->clear();
   m_2ltrkjet_nttrk->clear();
@@ -594,7 +607,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   iEvent.getByToken(TrackingVertexToken_, TrackingVertexHandle);
 
   // L1 vertices, CS add
-  edm::Handle< Vertex > L1TkPrimaryVertexHandle;
+  edm::Handle< VertexCollection > L1TkPrimaryVertexHandle;
   iEvent.getByToken(L1VertexToken_, L1TkPrimaryVertexHandle);
 
   // L1 jets, CS add
@@ -734,7 +747,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
     if (DebugMode) 
       cout << endl << "Finding vertex" << endl;
-     m_pv_L1reco->push_back(L1TkPrimaryVertexHandle->z0());
+    m_pv_L1reco->push_back(L1TkPrimaryVertexHandle->begin()->z0());
   }
 
 
@@ -777,7 +790,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     
     int this_l1track = 0;
     std::vector< TTTrack< Ref_Phase2TrackerDigi_ > >::const_iterator iterL1Track;
-    cout << "TTTrackHandle.isValid(): " << TTTrackHandle.isValid() << endl;
+    
     for (iterL1Track = TTTrackHandle->begin(); iterL1Track != TTTrackHandle->end(); iterL1Track++){
       
 
@@ -944,6 +957,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     int tmp_tp_pdgid = iterTP->pdgId();
     float tmp_tp_z0_prod = tmp_tp_vz;
     float tmp_tp_d0_prod = -tmp_tp_vx*sin(tmp_tp_phi) + tmp_tp_vy*cos(tmp_tp_phi);
+    int tmp_tp_nmu = 0;
+    int tmp_tp_nel = 0;
 
     if (MyProcess==13 && abs(tmp_tp_pdgid) != 13) continue;
     if (MyProcess==11 && abs(tmp_tp_pdgid) != 11) continue;
@@ -953,6 +968,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     if (tmp_tp_pt < TP_minPt) continue;
     if (fabs(tmp_tp_eta) > TP_maxEta) continue;
 
+    if (abs(tmp_tp_pdgid) == 13) tmp_tp_nmu++;
+    if (abs(tmp_tp_pdgid) == 11) tmp_tp_nel++;
 
     // ----------------------------------------------------------------------------------------------
     // get d0/z0 propagated back to the IP
@@ -1148,6 +1165,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     m_tp_nstub->push_back(nStubTP);
     m_tp_eventid->push_back(tmp_eventid);
     m_tp_charge->push_back(tmp_tp_charge);
+    m_tp_nmu->push_back(tmp_tp_nmu);
+    m_tp_nel->push_back(tmp_tp_nel);
 
     m_matchtrk_pt ->push_back(tmp_matchtrk_pt);
     m_matchtrk_eta->push_back(tmp_matchtrk_eta);
