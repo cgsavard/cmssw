@@ -231,7 +231,7 @@ private:
   std::vector<float>* m_2ltrkjet_phi;
   std::vector<float>* m_2ltrkjet_eta;
   std::vector<float>* m_2ltrkjet_pt;
-  //std::vector<float>* m_2ltrkhet_ht;
+  std::vector<float>* m_2ltrkjet_ht;
   std::vector<int>* m_2ltrkjet_ntracks;
   std::vector<int>* m_2ltrkjet_ndtrk;
   std::vector<int>* m_2ltrkjet_nttrk;
@@ -392,7 +392,7 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   m_2ltrkjet_phi = new std::vector<float>;
   m_2ltrkjet_p = new std::vector<float>;
   m_2ltrkjet_pt = new std::vector<float>;
-  //m_2ltrkjet_ht = new std::vector<float>;
+  m_2ltrkjet_ht = new std::vector<float>;
   m_2ltrkjet_ntracks=new std::vector<int>;
   m_2ltrkjet_ndtrk=new std::vector<int>;
   m_2ltrkjet_nttrk=new std::vector<int>;
@@ -456,7 +456,7 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("2ltrkjet_vz", &m_2ltrkjet_vz);
   eventTree->Branch("2ltrkjet_p", &m_2ltrkjet_p);
   eventTree->Branch("2ltrkjet_pt", &m_2ltrkjet_pt);
-  //eventTree->Branch("2ltrkjet_ht", &m_2ltrkjet_ht);
+  eventTree->Branch("2ltrkjet_ht", &m_2ltrkjet_ht);
   eventTree->Branch("2ltrkjet_phi", &m_2ltrkjet_phi);
   eventTree->Branch("2ltrkjet_ntracks", &m_2ltrkjet_ntracks);
 
@@ -556,7 +556,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_2ltrkjet_vz->clear();
   m_2ltrkjet_phi->clear();
   m_2ltrkjet_p->clear();
-  //m_2ltrkjet_ht->clear();
+  m_2ltrkjet_ht->clear();
   m_2ltrkjet_ntracks->clear();
   m_2ltrkjet_ndtrk->clear();
   m_2ltrkjet_nttrk->clear();
@@ -766,18 +766,20 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     if (DebugMode) 
       cout << endl << "Loop over jets!" << endl; 
 
+    float tmp_2ltrkjet_ht = 0;
+
     std::vector<L1TkJetParticle>::const_iterator jetIter;
     for (jetIter = TwoLayerTkJetHandle->begin(); jetIter != TwoLayerTkJetHandle->end(); ++jetIter){
-      //std::cout<<"Check 2 layer jets ptTot,eta,phi "<<jetIter->pt()<<", "<<jetIter->eta()<<", "<<jetIter->phi()<<std::endl;
-      //L1TkJetParticleDisp TrackJetId=jetIter->getDispCounters();
-      //std::cout<<"Check Counters "<<jetIter->getNtracks()<<", "<<jetIter->eta()<<", "<<jetIter->phi()<<std::endl;
       m_2ltrkjet_vz->push_back(jetIter->getJetVtx());
       m_2ltrkjet_ntracks->push_back(jetIter->getNtracks());
       m_2ltrkjet_phi->push_back(jetIter->phi());
       m_2ltrkjet_eta->push_back(jetIter->eta());
       m_2ltrkjet_pt->push_back(jetIter->pt());
       m_2ltrkjet_p->push_back(jetIter->p());
+
+      if (jetIter->pt() >= 30) tmp_2ltrkjet_ht += jetIter->pt();
     }
+    m_2ltrkjet_ht->push_back(tmp_2ltrkjet_ht);
   }
 
 
@@ -1176,10 +1178,6 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     m_tp_nstub->push_back(nStubTP);
     m_tp_eventid->push_back(tmp_eventid);
     m_tp_charge->push_back(tmp_tp_charge);
-    m_tp_nmu->push_back(tmp_tp_nmu);
-    m_tp_nel->push_back(tmp_tp_nel);
-    m_tp_nqu->push_back(tmp_tp_nqu);
-    m_tp_nhad->push_back(tmp_tp_nhad);
 
     m_matchtrk_pt ->push_back(tmp_matchtrk_pt);
     m_matchtrk_eta->push_back(tmp_matchtrk_eta);
@@ -1190,7 +1188,10 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     m_matchtrk_nstub->push_back(tmp_matchtrk_nstub);
 
   } //end loop tracking particles
-  
+  m_tp_nmu->push_back(tmp_tp_nmu);
+  m_tp_nel->push_back(tmp_tp_nel);
+  m_tp_nqu->push_back(tmp_tp_nqu);
+  m_tp_nhad->push_back(tmp_tp_nhad);  
 
   eventTree->Fill();
 
