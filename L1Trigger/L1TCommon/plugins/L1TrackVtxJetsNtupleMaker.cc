@@ -749,8 +749,6 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   // Find pv stuff, CS add
   // ----------------------------------------------------------------------------------------------
 
-  cout << "L1TkPrimaryVertexHandle.isValid(): " << L1TkPrimaryVertexHandle.isValid() << endl;
-  //cout << "TTTrackHandle.isValid(): " << TTTrackHandle.isValid() << endl;
   if(L1TkPrimaryVertexHandle.isValid()){
 
     if (DebugMode) 
@@ -763,7 +761,6 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   // loop over jets, CS add
   // ----------------------------------------------------------------------------------------------
 
-  cout << "TwoLayerTkJetHandle.isValid(): " << TwoLayerTkJetHandle.isValid() << endl;
   if(TwoLayerTkJetHandle.isValid()){
     
     if (DebugMode) 
@@ -947,7 +944,13 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   if (DebugMode) cout << endl << "Loop over tracking particles!" << endl;
 
   int this_tp = 0;
+  int tmp_tp_nel = 0;
+  int tmp_tp_nmu = 0;
+  int tmp_tp_nqu = 0;
+  int tmp_tp_nhad = 0;
+
   std::vector< TrackingParticle >::const_iterator iterTP;
+
   for (iterTP = TrackingParticleHandle->begin(); iterTP != TrackingParticleHandle->end(); ++iterTP) {
  
     edm::Ptr< TrackingParticle > tp_ptr(TrackingParticleHandle, this_tp);
@@ -965,10 +968,6 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     int tmp_tp_pdgid = iterTP->pdgId();
     float tmp_tp_z0_prod = tmp_tp_vz;
     float tmp_tp_d0_prod = -tmp_tp_vx*sin(tmp_tp_phi) + tmp_tp_vy*cos(tmp_tp_phi);
-    int tmp_tp_nmu = 0;
-    int tmp_tp_nel = 0;
-    int tmp_tp_nqu = 0;
-    int tmp_tp_nhad = 0;
 
     if (MyProcess==13 && abs(tmp_tp_pdgid) != 13) continue;
     if (MyProcess==11 && abs(tmp_tp_pdgid) != 11) continue;
