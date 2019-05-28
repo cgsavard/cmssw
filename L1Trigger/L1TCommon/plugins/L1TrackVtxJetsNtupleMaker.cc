@@ -192,6 +192,8 @@ private:
   std::vector<int>*   m_tp_charge;
   std::vector<int>*   m_tp_nmu;
   std::vector<int>*   m_tp_nel;
+  std::vector<int>*   m_tp_nqu;
+  std::vector<int>*   m_tp_nhad;
 
   // *L1 track* properties if m_tp_nmatch > 0
   std::vector<float>* m_matchtrk_pt;
@@ -352,6 +354,8 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   m_tp_charge = new std::vector<int>;
   m_tp_nmu = new std::vector<int>;
   m_tp_nel = new std::vector<int>;
+  m_tp_nqu = new std::vector<int>;
+  m_tp_nhad = new std::vector<int>;
 
   m_matchtrk_pt    = new std::vector<float>;
   m_matchtrk_eta   = new std::vector<float>;
@@ -436,6 +440,8 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("tp_charge",&m_tp_charge);
   eventTree->Branch("tp_nmu", &m_tp_nmu);
   eventTree->Branch("tp_nel", &m_tp_nel);
+  eventTree->Branch("tp_nqu", &m_tp_nqu);
+  eventTree->Branch("tp_nhad", &m_tp_nhad);
 
   eventTree->Branch("matchtrk_pt",      &m_matchtrk_pt);
   eventTree->Branch("matchtrk_eta",     &m_matchtrk_eta);
@@ -533,6 +539,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_tp_charge->clear();
   m_tp_nmu->clear();
   m_tp_nel->clear();
+  m_tp_nqu->clear();
+  m_tp_nhad->clear();
 
   m_matchtrk_pt->clear();
   m_matchtrk_eta->clear();
@@ -959,6 +967,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     float tmp_tp_d0_prod = -tmp_tp_vx*sin(tmp_tp_phi) + tmp_tp_vy*cos(tmp_tp_phi);
     int tmp_tp_nmu = 0;
     int tmp_tp_nel = 0;
+    int tmp_tp_nqu = 0;
+    int tmp_tp_nhad = 0;
 
     if (MyProcess==13 && abs(tmp_tp_pdgid) != 13) continue;
     if (MyProcess==11 && abs(tmp_tp_pdgid) != 11) continue;
@@ -970,6 +980,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
     if (abs(tmp_tp_pdgid) == 13) tmp_tp_nmu++;
     if (abs(tmp_tp_pdgid) == 11) tmp_tp_nel++;
+    if (abs(tmp_tp_pdgid) <= 8) tmp_tp_nqu++;
+    if (abs(tmp_tp_pdgid) > 37) tmp_tp_nhad++;
 
     // ----------------------------------------------------------------------------------------------
     // get d0/z0 propagated back to the IP
@@ -1167,6 +1179,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     m_tp_charge->push_back(tmp_tp_charge);
     m_tp_nmu->push_back(tmp_tp_nmu);
     m_tp_nel->push_back(tmp_tp_nel);
+    m_tp_nqu->push_back(tmp_tp_nqu);
+    m_tp_nhad->push_back(tmp_tp_nhad);
 
     m_matchtrk_pt ->push_back(tmp_matchtrk_pt);
     m_matchtrk_eta->push_back(tmp_matchtrk_eta);
