@@ -11,13 +11,15 @@ from Configuration.StandardSequences.Eras import eras
 
 process = cms.Process('L1',eras.Phase2_trigger)
 
+GEOM = 'D41'
+
 # import of standard configurations
 process.load('Configuration.StandardSequences.Services_cff')
 process.load('SimGeneral.HepPDTESSource.pythiapdt_cfi')
 process.load('FWCore.MessageService.MessageLogger_cfi')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load('SimGeneral.MixingModule.mixNoPU_cfi')
-process.load('Configuration.Geometry.GeometryExtended2023D35Reco_cff') #NEED TO CHANGE GEOM NUMBER BASED ON SAMPLES
+process.load('Configuration.Geometry.GeometryExtended2023'+GEOM+'Reco_cff') #NEED TO CHANGE GEOM NUMBER BASED ON SAMPLES
 process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.StandardSequences.SimL1Emulator_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
@@ -28,13 +30,12 @@ process.load('L1Trigger.VertexFinder.VertexProducer_cff')
 process.load('L1Trigger.TwoLayerJets.TwoLayerJets_cfi')
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(5)
+    input = cms.untracked.int32(3)
 )
 
 # Input source
 Source_Files = cms.untracked.vstring(
-'file:root://cms-xrd-global.cern.ch//store/relval/CMSSW_10_4_0_mtd5/RelValTTbar_Tauola_14TeV/GEN-SIM-DIGI-RAW/103X_upgrade2023_realistic_v2_2023D35noPU-v1/20000/FD3E03AC-D441-5B4A-A828-6A61A9877AA1.root'
-#'file:/nfs/data39/cms/rish/Production93X/StopSampleTTracks%s.root'
+'file:root://cms-xrd-global.cern.ch//store/relval/CMSSW_10_6_0_pre4/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/106X_upgrade2023_realistic_v2_2023D41noPU-v1/10000/F1B6D387-7EA9-0B47-8661-2D444502CD15.root'
 )
 
 process.source = cms.Source("PoolSource", fileNames = Source_Files,
@@ -60,15 +61,6 @@ process.configurationMetadata = cms.untracked.PSet(
 )
 
 # Output definition
-
-#process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
-#    dataset = cms.untracked.PSet(
-#        dataTier = cms.untracked.string('GEN-SIM-DIGI-RAW'),
-#        filterName = cms.untracked.string('')
-#    ),
-#    fileName = cms.untracked.string('file:outTest.root'),
-#    splitLevel = cms.untracked.int32(0)
-#)
 
 # Additional output definition
 
@@ -102,33 +94,34 @@ process.TwoLayerJets.L1TracksInputTag = cms.InputTag("TTTracksFromTracklet", "Le
 ############################################################
 
 process.L1TrackVtxJetsNtuple = cms.EDAnalyzer('L1TrackVtxJetsNtupleMaker',
-                                       MyProcess = cms.int32(1),
-                                       DebugMode = cms.bool(False), # printout debug statements
-                                       SaveAllTracks = cms.bool(True), # save *all* L1 tracks
-                                       SaveStubs = cms.bool(False), # save some info for *all* stubs
-                                       LooseMatch = cms.bool(False), # "loose" MCtruth association
-                                       L1Tk_nPar = cms.int32(4), # use 4 or 5-parameter L1 tack fit
-                                       L1Tk_minNStub = cms.int32(4), # L1 tracks with >= 4 stubs  
-                                       TP_minNStub = cms.int32(4), # require TP to have >= X number of stubs associated with it
-                                       TP_minNStubLayer = cms.int32(4),  # require TP to have stubs in >= X layers/disks
-                                       TP_minPt = cms.double(2.0),       # only save TPs with pt > X \GeV
-                                       TP_maxEta = cms.double(2.4),      # only save TPs with |eta| <\X
-                                       TP_maxZ0 = cms.double(30.0),      # only save TPs with |z0| < \X cm
-                                       L1TrackInputTag = cms.InputTag("TTTracksFromTracklet", "Level1TTTracks"), ## TTTrack input                                                            
-                                       MCTruthTrackInputTag = cms.InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks"), ## MCTruth input
-                                       # other input collections
-                                       L1StubInputTag = cms.InputTag("TTStubsFromPhase2TrackerDigis","StubAccepted"),
-                                       MCTruthClusterInputTag = cms.InputTag("TTClusterAssociatorFromPixelDigis", "ClusterAccepted"),
-                                       MCTruthStubInputTag = cms.InputTag("TTStubAssociatorFromPixelDigis", "StubAccepted"),
-                                       TrackingParticleInputTag = cms.InputTag("mix", "MergedTrackTruth"),
-                                       TrackingVertexInputTag = cms.InputTag("mix", "MergedTrackTruth"),
-                                       TwoLayerTkJetInputTag = cms.InputTag("TwoLayerJets" , "L1TwoLayerJets"),
-                                       RecoVertexInputTag = cms.InputTag("VertexProducer", "l1vertextdr"),
+        MyProcess = cms.int32(1),
+        DebugMode = cms.bool(False), # printout debug statements
+        SaveAllTracks = cms.bool(True), # save *all* L1 tracks
+        SaveStubs = cms.bool(False), # save some info for *all* stubs
+        LooseMatch = cms.bool(False), # "loose" MCtruth association
+        L1Tk_nPar = cms.int32(4), # use 4 or 5-parameter L1 tack fit
+        L1Tk_minNStub = cms.int32(4), # L1 tracks with >= 4 stubs  
+        TP_minNStub = cms.int32(4), # require TP to have >= X number of stubs associated with it
+        TP_minNStubLayer = cms.int32(4),  # require TP to have stubs in >= X layers/disks
+        TP_minPt = cms.double(2.0),       # only save TPs with pt > X \GeV
+        TP_maxEta = cms.double(2.4),      # only save TPs with |eta| <\X
+        TP_maxZ0 = cms.double(30.0),      # only save TPs with |z0| < \X cm
+        L1TrackInputTag = cms.InputTag("TTTracksFromTracklet", "Level1TTTracks"), ## TTTrack input  
+        MCTruthTrackInputTag = cms.InputTag("TTTrackAssociatorFromPixelDigis", "Level1TTTracks"), ## MCTruth input
+        # other input collections
+        L1StubInputTag = cms.InputTag("TTStubsFromPhase2TrackerDigis","StubAccepted"),
+        MCTruthClusterInputTag=cms.InputTag("TTClusterAssociatorFromPixelDigis", "ClusterAccepted"),
+        MCTruthStubInputTag = cms.InputTag("TTStubAssociatorFromPixelDigis", "StubAccepted"),
+        TrackingParticleInputTag = cms.InputTag("mix", "MergedTrackTruth"),
+        TrackingVertexInputTag = cms.InputTag("mix", "MergedTrackTruth"),
+        TwoLayerTkJetInputTag = cms.InputTag("TwoLayerJets" , "L1TwoLayerJets"),
+        RecoVertexInputTag = cms.InputTag("VertexProducer","l1vertextdr"),
+        genParticleToken = cms.InputTag("genParticles")
                                        )
 
 process.Ntuple_step = cms.Path(process.L1TrackVtxJetsNtuple)
 
-#process.TFileService = cms.Service("TFileService", fileName = cms.string('outTest.root' %(int(sys.argv[2]))), closeFileFast = cms.untracked.bool(True))
+#process.TFileService = cms.Service("TFileService", fileName = cms.string('TTbar_upgrade2023_noPU_Ntuple.root'), closeFileFast = cms.untracked.bool(True))
 process.TFileService = cms.Service("TFileService", fileName = cms.string('outTest.root'), closeFileFast = cms.untracked.bool(True))
 
 

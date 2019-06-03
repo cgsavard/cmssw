@@ -37,8 +37,9 @@
 //CS add
 #include "DataFormats/L1TrackTrigger/interface/L1TkJetParticle.h"
 #include "DataFormats/L1TVertex/interface/Vertex.h"
-//#include "DataFormats/L1TVertex/interface/VertexCollection.h"
 #include "DataFormats/L1TrackTrigger/interface/L1TkJetParticleFwd.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
 ////////////////////////////
 // DETECTOR GEOMETRY HEADERS
@@ -132,6 +133,7 @@ private:
   //CS added
   edm::InputTag TwoLayerTkJetInputTag;
   edm::InputTag RecoVertexInputTag;
+  edm::InputTag GenParticleInputTag;
 
   edm::EDGetTokenT< edmNew::DetSetVector< TTCluster< Ref_Phase2TrackerDigi_ > > > ttClusterToken_;
   edm::EDGetTokenT< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_ > > > ttStubToken_;
@@ -144,9 +146,9 @@ private:
   edm::EDGetTokenT< std::vector< TrackingParticle > > TrackingParticleToken_;
   edm::EDGetTokenT< std::vector< TrackingVertex > > TrackingVertexToken_;
   //CS added
-  edm::EDGetTokenT< L1TkJetParticleCollection >L1TwoLayerTkJetsToken_;
-  edm::EDGetTokenT< VertexCollection >L1VertexToken_;
-
+  edm::EDGetTokenT< L1TkJetParticleCollection > L1TwoLayerTkJetsToken_;
+  edm::EDGetTokenT< VertexCollection > L1VertexToken_;
+  edm::EDGetTokenT< reco::GenParticleCollection > genParticleToken_;
 
   //-----------------------------------------------------------------------------------------------
   // tree & branches for mini-ntuple
@@ -154,7 +156,8 @@ private:
   TTree* eventTree;
 
   // primary vertex, CS add
-  std::vector<float>* m_pv_L1reco;
+  vector<float>* m_pv_L1reco;
+  std::vector<float>* m_pv_genvz;
 
   // all L1 tracks
   std::vector<float>* m_trk_pt;
@@ -226,16 +229,29 @@ private:
   std::vector<int>*   m_allstub_genuine;
 
   // 2l track jets, CS add
-  std::vector<float>* m_2ltrkjet_vz;
-  std::vector<float>* m_2ltrkjet_p;
-  std::vector<float>* m_2ltrkjet_phi;
-  std::vector<float>* m_2ltrkjet_eta;
-  std::vector<float>* m_2ltrkjet_pt;
-  std::vector<float>* m_2ltrkjet_ht;
-  std::vector<int>* m_2ltrkjet_ntracks;
-  std::vector<int>* m_2ltrkjet_ndtrk;
-  std::vector<int>* m_2ltrkjet_nttrk;
-  std::vector<int>* m_2ltrkjet_ntdtrk;
+  std::vector<float>* m_tltrkjet_vz;
+  std::vector<float>* m_tltrkjet_p;
+  std::vector<float>* m_tltrkjet_phi;
+  std::vector<float>* m_tltrkjet_eta;
+  std::vector<float>* m_tltrkjet_pt;
+  std::vector<float>* m_tltrkjet_ht;
+  std::vector<int>* m_tltrkjet_ntracks;
+  std::vector<int>* m_tltrkjet_ndtrk;
+  std::vector<int>* m_tltrkjet_nttrk;
+  std::vector<int>* m_tltrkjet_ntdtrk;
+
+  // each event
+  vector<int>* m_evt_ntrk;
+  vector<int>* m_evt_ntp;
+  vector<int>* m_evt_ntpaccept;
+
+  // all gen particles
+  std::vector<float>* m_gen_pt;
+  std::vector<float>* m_gen_eta;
+  std::vector<float>* m_gen_phi;
+  std::vector<float>* m_gen_z0;
+  std::vector<int>*   m_gen_pdgid;
+  std::vector<int>*   m_gen_charge;
 
 };
 
@@ -275,6 +291,7 @@ L1TrackVtxJetsNtupleMaker::L1TrackVtxJetsNtupleMaker(edm::ParameterSet const& iC
   //CS add
   RecoVertexInputTag    = iConfig.getParameter<edm::InputTag>("RecoVertexInputTag");
   TwoLayerTkJetInputTag = iConfig.getParameter<edm::InputTag>("TwoLayerTkJetInputTag");
+  GenParticleInputTag = iConfig.getParameter<edm::InputTag>("genParticleToken");
 
   ttTrackToken_ = consumes< std::vector< TTTrack< Ref_Phase2TrackerDigi_ > > >(L1TrackInputTag);
   ttTrackMCTruthToken_ = consumes< TTTrackAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthTrackInputTag);
@@ -288,6 +305,7 @@ L1TrackVtxJetsNtupleMaker::L1TrackVtxJetsNtupleMaker(edm::ParameterSet const& iC
   //CS add
   L1VertexToken_=consumes<VertexCollection>(RecoVertexInputTag);
   L1TwoLayerTkJetsToken_=consumes<L1TkJetParticleCollection>(TwoLayerTkJetInputTag);
+  genParticleToken_ = consumes<reco::GenParticleCollection>(GenParticleInputTag);
 
 }
 
@@ -385,18 +403,30 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   m_allstub_genuine = new std::vector<int>;
 
   //CS add
-  m_pv_L1reco = new std::vector<float>;
+  m_pv_L1reco = new vector<float>;
+  m_pv_genvz = new std::vector<float>;
 
-  m_2ltrkjet_eta = new std::vector<float>;
-  m_2ltrkjet_vz = new std::vector<float>;
-  m_2ltrkjet_phi = new std::vector<float>;
-  m_2ltrkjet_p = new std::vector<float>;
-  m_2ltrkjet_pt = new std::vector<float>;
-  m_2ltrkjet_ht = new std::vector<float>;
-  m_2ltrkjet_ntracks=new std::vector<int>;
-  m_2ltrkjet_ndtrk=new std::vector<int>;
-  m_2ltrkjet_nttrk=new std::vector<int>;
-  m_2ltrkjet_ntdtrk=new std::vector<int>;
+  m_tltrkjet_eta = new std::vector<float>;
+  m_tltrkjet_vz = new std::vector<float>;
+  m_tltrkjet_phi = new std::vector<float>;
+  m_tltrkjet_p = new std::vector<float>;
+  m_tltrkjet_pt = new std::vector<float>;
+  m_tltrkjet_ht = new std::vector<float>;
+  m_tltrkjet_ntracks=new std::vector<int>;
+  m_tltrkjet_ndtrk=new std::vector<int>;
+  m_tltrkjet_nttrk=new std::vector<int>;
+  m_tltrkjet_ntdtrk=new std::vector<int>;
+
+  m_evt_ntrk = new vector<int>;
+  m_evt_ntp = new vector<int>;
+  m_evt_ntpaccept = new vector<int>;
+
+  m_gen_pt      = new std::vector<float>;
+  m_gen_eta     = new std::vector<float>;
+  m_gen_phi     = new std::vector<float>;
+  m_gen_z0      = new std::vector<float>;
+  m_gen_pdgid   = new std::vector<int>;
+  m_gen_charge  = new std::vector<int>;
 
 
 
@@ -452,15 +482,16 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("matchtrk_nstub",   &m_matchtrk_nstub);
 
   //CS add
-  eventTree->Branch("2ltrkjet_eta", &m_2ltrkjet_eta);
-  eventTree->Branch("2ltrkjet_vz", &m_2ltrkjet_vz);
-  eventTree->Branch("2ltrkjet_p", &m_2ltrkjet_p);
-  eventTree->Branch("2ltrkjet_pt", &m_2ltrkjet_pt);
-  eventTree->Branch("2ltrkjet_ht", &m_2ltrkjet_ht);
-  eventTree->Branch("2ltrkjet_phi", &m_2ltrkjet_phi);
-  eventTree->Branch("2ltrkjet_ntracks", &m_2ltrkjet_ntracks);
+  eventTree->Branch("tltrkjet_eta", &m_tltrkjet_eta);
+  eventTree->Branch("tltrkjet_vz", &m_tltrkjet_vz);
+  eventTree->Branch("tltrkjet_p", &m_tltrkjet_p);
+  eventTree->Branch("tltrkjet_pt", &m_tltrkjet_pt);
+  eventTree->Branch("tltrkjet_ht", &m_tltrkjet_ht);
+  eventTree->Branch("tltrkjet_phi", &m_tltrkjet_phi);
+  eventTree->Branch("tltrkjet_ntracks", &m_tltrkjet_ntracks);
 
   eventTree->Branch("pv_L1reco", &m_pv_L1reco);
+  eventTree->Branch("pv_genvz", &m_pv_genvz);
 
   if (SaveStubs) {
     eventTree->Branch("allstub_x", &m_allstub_x);
@@ -483,6 +514,17 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
 
     eventTree->Branch("allstub_genuine", &m_allstub_genuine);
   }
+
+  eventTree->Branch("evt_ntrk", &m_evt_ntrk);
+  eventTree->Branch("evt_ntp", &m_evt_ntp);
+  eventTree->Branch("evt_ntpaccept", &m_evt_ntpaccept);
+
+  eventTree->Branch("genParts_pt",     &m_gen_pt);
+  eventTree->Branch("genParts_eta",    &m_gen_eta);
+  eventTree->Branch("genParts_phi",    &m_gen_phi);
+  eventTree->Branch("genParts_z0",     &m_gen_z0);
+  eventTree->Branch("genParts_pdgId",  &m_gen_pdgid);
+  eventTree->Branch("genParts_charge", &m_gen_charge);
 
 }
 
@@ -551,18 +593,19 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_matchtrk_nstub->clear();
 
   //CS add
-  m_2ltrkjet_eta->clear();
-  m_2ltrkjet_pt->clear();
-  m_2ltrkjet_vz->clear();
-  m_2ltrkjet_phi->clear();
-  m_2ltrkjet_p->clear();
-  m_2ltrkjet_ht->clear();
-  m_2ltrkjet_ntracks->clear();
-  m_2ltrkjet_ndtrk->clear();
-  m_2ltrkjet_nttrk->clear();
-  m_2ltrkjet_ntdtrk->clear();
+  m_tltrkjet_eta->clear();
+  m_tltrkjet_pt->clear();
+  m_tltrkjet_vz->clear();
+  m_tltrkjet_phi->clear();
+  m_tltrkjet_p->clear();
+  m_tltrkjet_ht->clear();
+  m_tltrkjet_ntracks->clear();
+  m_tltrkjet_ndtrk->clear();
+  m_tltrkjet_nttrk->clear();
+  m_tltrkjet_ntdtrk->clear();
 
   m_pv_L1reco->clear();
+  m_pv_genvz->clear();
 
   if (SaveStubs) {
     m_allstub_x->clear();
@@ -586,6 +629,16 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     m_allstub_genuine->clear();
   }
 
+  m_evt_ntrk->clear();
+  m_evt_ntp->clear();
+  m_evt_ntpaccept->clear();
+
+  m_gen_pt->clear();
+  m_gen_eta->clear();
+  m_gen_phi->clear();
+  m_gen_z0->clear();
+  m_gen_pdgid->clear();
+  m_gen_charge->clear();
 
   // -----------------------------------------------------------------------------------------------
   // retrieve various containers
@@ -622,7 +675,9 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   edm::Handle<L1TkJetParticleCollection> TwoLayerTkJetHandle;
   iEvent.getByToken(L1TwoLayerTkJetsToken_,TwoLayerTkJetHandle);
 
-
+  // gen particles, CS add
+  edm::Handle<reco::GenParticleCollection> genParticleHandle;
+  iEvent.getByToken(genParticleToken_, genParticleHandle);
 
   // -----------------------------------------------------------------------------------------------
   // more for TTStubs
@@ -744,6 +799,36 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Loop over gen particles, CS add
+  // ----------------------------------------------------------------------------------------------
+
+  if (genParticleHandle.isValid()){
+
+    TH1F * hMax_genvz = new TH1F("hMax_genvz", "hMax_genvz", 800, -20, 20 );
+
+    for(size_t i = 0; i < genParticleHandle->size(); ++ i) {
+
+      const reco::GenParticle & p = (*genParticleHandle)[i];
+      hMax_genvz->Fill(p.vz());
+
+      // save gen info for status==1 (final state) particles
+      if ( p.status()!=1 || p.pt()<2 || fabs(p.eta())>2.4 ) continue;
+
+      m_gen_pt->push_back(p.pt());
+      m_gen_eta->push_back(p.eta());
+      m_gen_phi->push_back(p.phi());
+      m_gen_z0->push_back(p.vz());
+      m_gen_pdgid->push_back(p.pdgId());
+      m_gen_charge->push_back(p.charge());
+
+    }// end gen particle loop
+    float temp_locVZ = (hMax_genvz->GetMaximumBin())/20.-20.;
+    delete hMax_genvz;
+
+    m_pv_genvz->push_back(temp_locVZ);
+    }
+
 
   // ----------------------------------------------------------------------------------------------
   // Find pv stuff, CS add
@@ -766,20 +851,20 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     if (DebugMode) 
       cout << endl << "Loop over jets!" << endl; 
 
-    float tmp_2ltrkjet_ht = 0;
+    float tmp_tltrkjet_ht = 0;
 
     std::vector<L1TkJetParticle>::const_iterator jetIter;
     for (jetIter = TwoLayerTkJetHandle->begin(); jetIter != TwoLayerTkJetHandle->end(); ++jetIter){
-      m_2ltrkjet_vz->push_back(jetIter->getJetVtx());
-      m_2ltrkjet_ntracks->push_back(jetIter->getNtracks());
-      m_2ltrkjet_phi->push_back(jetIter->phi());
-      m_2ltrkjet_eta->push_back(jetIter->eta());
-      m_2ltrkjet_pt->push_back(jetIter->pt());
-      m_2ltrkjet_p->push_back(jetIter->p());
+      m_tltrkjet_vz->push_back(jetIter->getJetVtx());
+      m_tltrkjet_ntracks->push_back(jetIter->getNtracks());
+      m_tltrkjet_phi->push_back(jetIter->phi());
+      m_tltrkjet_eta->push_back(jetIter->eta());
+      m_tltrkjet_pt->push_back(jetIter->pt());
+      m_tltrkjet_p->push_back(jetIter->p());
 
-      if (jetIter->pt() >= 30) tmp_2ltrkjet_ht += jetIter->pt();
+      if (jetIter->pt() >= 30) tmp_tltrkjet_ht += jetIter->pt(); //can change the pt cut
     }
-    m_2ltrkjet_ht->push_back(tmp_2ltrkjet_ht);
+    m_tltrkjet_ht->push_back(tmp_tltrkjet_ht);
   }
 
 
@@ -797,9 +882,12 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     
     int this_l1track = 0;
     std::vector< TTTrack< Ref_Phase2TrackerDigi_ > >::const_iterator iterL1Track;
-    
+
+    int tmp_evt_ntrk = 0;
+
     for (iterL1Track = TTTrackHandle->begin(); iterL1Track != TTTrackHandle->end(); iterL1Track++){
       
+      tmp_evt_ntrk++;
 
       edm::Ptr< TTTrack< Ref_Phase2TrackerDigi_ > > l1track_ptr(TTTrackHandle, this_l1track);
       this_l1track++;
@@ -902,6 +990,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
       if (my_tp.isNull()) myFake = 0;
       else {
+
 	int tmp_eventid = my_tp->eventId().event();
 
 	if (tmp_eventid > 0) myFake = 2;
@@ -935,6 +1024,8 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
     }//end track loop
 
+    m_evt_ntrk->push_back(tmp_evt_ntrk);
+
   }//end if SaveAllTracks
 
 
@@ -950,16 +1041,19 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   int tmp_tp_nmu = 0;
   int tmp_tp_nqu = 0;
   int tmp_tp_nhad = 0;
+  int tmp_evt_ntp = 0;
+  int tmp_evt_ntpaccept = 0;
 
   std::vector< TrackingParticle >::const_iterator iterTP;
 
-  for (iterTP = TrackingParticleHandle->begin(); iterTP != TrackingParticleHandle->end(); ++iterTP) {
- 
+  for (iterTP = TrackingParticleHandle->begin(); iterTP != TrackingParticleHandle->end(); ++iterTP) { 
     edm::Ptr< TrackingParticle > tp_ptr(TrackingParticleHandle, this_tp);
     this_tp++;
 
     int tmp_eventid = iterTP->eventId().event();
     if (MyProcess != 1 && tmp_eventid > 0) continue; //only care about tracking particles from the primary interaction (except for MyProcess==1, i.e. looking at all TPs)
+
+    tmp_evt_ntp++;
 
     float tmp_tp_pt  = iterTP->pt();
     float tmp_tp_eta = iterTP->eta();
@@ -1164,6 +1258,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
       tmp_matchtrk_nstub  = (int) matchedTracks.at(i_track)->getStubRefs().size();
     }
 
+    tmp_evt_ntpaccept++;
 
     m_tp_pt->push_back(tmp_tp_pt);
     m_tp_eta->push_back(tmp_tp_eta);
@@ -1192,6 +1287,9 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_tp_nel->push_back(tmp_tp_nel);
   m_tp_nqu->push_back(tmp_tp_nqu);
   m_tp_nhad->push_back(tmp_tp_nhad);  
+
+  m_evt_ntp->push_back(tmp_evt_ntp);
+  m_evt_ntpaccept->push_back(tmp_evt_ntpaccept);
 
   eventTree->Fill();
 
