@@ -34,7 +34,6 @@
 #include "SimTracker/TrackTriggerAssociation/interface/TTStubAssociationMap.h"
 #include "SimTracker/TrackTriggerAssociation/interface/TTTrackAssociationMap.h"
 #include "Geometry/Records/interface/StackedTrackerGeometryRecord.h"
-//CS add
 #include "DataFormats/L1TrackTrigger/interface/L1TkJetParticle.h"
 #include "DataFormats/L1TVertex/interface/Vertex.h"
 #include "DataFormats/L1TrackTrigger/interface/L1TkJetParticleFwd.h"
@@ -130,7 +129,6 @@ private:
   edm::InputTag MCTruthStubInputTag;
   edm::InputTag TrackingParticleInputTag;
   edm::InputTag TrackingVertexInputTag;
-  //CS added
   edm::InputTag TwoLayerTkJetInputTag;
   edm::InputTag RecoVertexInputTag;
   edm::InputTag GenParticleInputTag;
@@ -145,7 +143,6 @@ private:
 
   edm::EDGetTokenT< std::vector< TrackingParticle > > TrackingParticleToken_;
   edm::EDGetTokenT< std::vector< TrackingVertex > > TrackingVertexToken_;
-  //CS added
   edm::EDGetTokenT< L1TkJetParticleCollection > L1TwoLayerTkJetsToken_;
   edm::EDGetTokenT< VertexCollection > L1VertexToken_;
   edm::EDGetTokenT< reco::GenParticleCollection > genParticleToken_;
@@ -155,7 +152,7 @@ private:
 
   TTree* eventTree;
 
-  // primary vertex, CS add
+  // primary vertex
   vector<float>* m_pv_L1reco;
   std::vector<float>* m_pv_genvz;
 
@@ -206,6 +203,14 @@ private:
   std::vector<float>* m_matchtrk_z0;
   std::vector<float>* m_matchtrk_chi2; 
   std::vector<int>*   m_matchtrk_nstub;
+
+  std::vector<float>* m_matchtrks_pt;
+  std::vector<float>* m_matchtrks_eta;
+  std::vector<float>* m_matchtrks_phi;
+  std::vector<float>* m_matchtrks_d0; //this variable is only filled if L1Tk_nPar==5
+  std::vector<float>* m_matchtrks_z0;
+  std::vector<float>* m_matchtrks_chi2; 
+  std::vector<int>*   m_matchtrks_nstub;
 
   // ALL stubs
   std::vector<float>* m_allstub_x;
@@ -288,7 +293,6 @@ L1TrackVtxJetsNtupleMaker::L1TrackVtxJetsNtupleMaker(edm::ParameterSet const& iC
   MCTruthStubInputTag = iConfig.getParameter<edm::InputTag>("MCTruthStubInputTag");
   TrackingParticleInputTag = iConfig.getParameter<edm::InputTag>("TrackingParticleInputTag");
   TrackingVertexInputTag = iConfig.getParameter<edm::InputTag>("TrackingVertexInputTag");
-  //CS add
   RecoVertexInputTag    = iConfig.getParameter<edm::InputTag>("RecoVertexInputTag");
   TwoLayerTkJetInputTag = iConfig.getParameter<edm::InputTag>("TwoLayerTkJetInputTag");
   GenParticleInputTag = iConfig.getParameter<edm::InputTag>("genParticleToken");
@@ -302,7 +306,6 @@ L1TrackVtxJetsNtupleMaker::L1TrackVtxJetsNtupleMaker(edm::ParameterSet const& iC
 
   TrackingParticleToken_ = consumes< std::vector< TrackingParticle > >(TrackingParticleInputTag);
   TrackingVertexToken_ = consumes< std::vector< TrackingVertex > >(TrackingVertexInputTag);
-  //CS add
   L1VertexToken_=consumes<VertexCollection>(RecoVertexInputTag);
   L1TwoLayerTkJetsToken_=consumes<L1TkJetParticleCollection>(TwoLayerTkJetInputTag);
   genParticleToken_ = consumes<reco::GenParticleCollection>(GenParticleInputTag);
@@ -382,7 +385,15 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   m_matchtrk_d0    = new std::vector<float>;
   m_matchtrk_chi2  = new std::vector<float>;
   m_matchtrk_nstub = new std::vector<int>;
-  
+
+  m_matchtrks_pt    = new std::vector<float>;
+  m_matchtrks_eta   = new std::vector<float>;
+  m_matchtrks_phi   = new std::vector<float>;
+  m_matchtrks_z0    = new std::vector<float>;
+  m_matchtrks_d0    = new std::vector<float>;
+  m_matchtrks_chi2  = new std::vector<float>;
+  m_matchtrks_nstub = new std::vector<int>;  
+
   m_allstub_x = new std::vector<float>;
   m_allstub_y = new std::vector<float>;
   m_allstub_z = new std::vector<float>;
@@ -402,7 +413,6 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
 
   m_allstub_genuine = new std::vector<int>;
 
-  //CS add
   m_pv_L1reco = new vector<float>;
   m_pv_genvz = new std::vector<float>;
 
@@ -481,7 +491,14 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("matchtrk_chi2",    &m_matchtrk_chi2);
   eventTree->Branch("matchtrk_nstub",   &m_matchtrk_nstub);
 
-  //CS add
+  eventTree->Branch("matchtrks_pt",      &m_matchtrks_pt);
+  eventTree->Branch("matchtrks_eta",     &m_matchtrks_eta);
+  eventTree->Branch("matchtrks_phi",     &m_matchtrks_phi);
+  eventTree->Branch("matchtrks_z0",      &m_matchtrks_z0);
+  eventTree->Branch("matchtrks_d0",      &m_matchtrks_d0);
+  eventTree->Branch("matchtrks_chi2",    &m_matchtrks_chi2);
+  eventTree->Branch("matchtrks_nstub",   &m_matchtrks_nstub);
+
   eventTree->Branch("tltrkjet_eta", &m_tltrkjet_eta);
   eventTree->Branch("tltrkjet_vz", &m_tltrkjet_vz);
   eventTree->Branch("tltrkjet_p", &m_tltrkjet_p);
@@ -519,12 +536,12 @@ void L1TrackVtxJetsNtupleMaker::beginJob()
   eventTree->Branch("evt_ntp", &m_evt_ntp);
   eventTree->Branch("evt_ntpaccept", &m_evt_ntpaccept);
 
-  eventTree->Branch("genParts_pt",     &m_gen_pt);
-  eventTree->Branch("genParts_eta",    &m_gen_eta);
-  eventTree->Branch("genParts_phi",    &m_gen_phi);
-  eventTree->Branch("genParts_z0",     &m_gen_z0);
-  eventTree->Branch("genParts_pdgId",  &m_gen_pdgid);
-  eventTree->Branch("genParts_charge", &m_gen_charge);
+  eventTree->Branch("gen_pt",     &m_gen_pt);
+  eventTree->Branch("gen_eta",    &m_gen_eta);
+  eventTree->Branch("gen_phi",    &m_gen_phi);
+  eventTree->Branch("gen_z0",     &m_gen_z0);
+  eventTree->Branch("gen_pdgid",  &m_gen_pdgid);
+  eventTree->Branch("gen_charge", &m_gen_charge);
 
 }
 
@@ -592,7 +609,14 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   m_matchtrk_chi2->clear();
   m_matchtrk_nstub->clear();
 
-  //CS add
+  m_matchtrks_pt->clear();
+  m_matchtrks_eta->clear();
+  m_matchtrks_phi->clear();
+  m_matchtrks_z0->clear();
+  m_matchtrks_d0->clear();
+  m_matchtrks_chi2->clear();
+  m_matchtrks_nstub->clear();
+
   m_tltrkjet_eta->clear();
   m_tltrkjet_pt->clear();
   m_tltrkjet_vz->clear();
@@ -667,15 +691,15 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   iEvent.getByToken(TrackingParticleToken_, TrackingParticleHandle);
   iEvent.getByToken(TrackingVertexToken_, TrackingVertexHandle);
 
-  // L1 vertices, CS add
+  // L1 vertices
   edm::Handle< VertexCollection > L1TkPrimaryVertexHandle;
   iEvent.getByToken(L1VertexToken_, L1TkPrimaryVertexHandle);
 
-  // L1 jets, CS add
+  // L1 jets
   edm::Handle<L1TkJetParticleCollection> TwoLayerTkJetHandle;
   iEvent.getByToken(L1TwoLayerTkJetsToken_,TwoLayerTkJetHandle);
 
-  // gen particles, CS add
+  // gen particles
   edm::Handle<reco::GenParticleCollection> genParticleHandle;
   iEvent.getByToken(genParticleToken_, genParticleHandle);
 
@@ -800,7 +824,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Loop over gen particles, CS add
+  // Loop over gen particles
   // ----------------------------------------------------------------------------------------------
 
   if (genParticleHandle.isValid()){
@@ -827,11 +851,11 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     delete hMax_genvz;
 
     m_pv_genvz->push_back(temp_locVZ);
-    }
+  }
 
 
   // ----------------------------------------------------------------------------------------------
-  // Find pv stuff, CS add
+  // Find pv stuff
   // ----------------------------------------------------------------------------------------------
 
   if(L1TkPrimaryVertexHandle.isValid()){
@@ -843,7 +867,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
 
   // ----------------------------------------------------------------------------------------------
-  // loop over jets, CS add
+  // loop over jets
   // ----------------------------------------------------------------------------------------------
 
   if(TwoLayerTkJetHandle.isValid()){
@@ -908,7 +932,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
       int tmp_trk_nstub  = (int) iterL1Track->getStubRefs().size();
 
 
-      // ----------------------------------------------------------------------------------------------
+      // -------------------------------------------------------------------------------------------
       // loop over stubs on tracks
       if (DebugMode && SaveStubs) {
 
@@ -939,7 +963,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 	  
 	}//end loop over stubs
       }
-      // ----------------------------------------------------------------------------------------------
+      // -------------------------------------------------------------------------------------------
 
 
       int tmp_trk_genuine = 0;
@@ -952,8 +976,9 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
       if (MCTruthTTTrackHandle->isCombinatoric(l1track_ptr)) tmp_trk_combinatoric = 1;
       
       if (DebugMode) {
-	cout << "L1 track, pt: " << tmp_trk_pt << " eta: " << tmp_trk_eta << " phi: " << tmp_trk_phi 
-	     << " z0: " << tmp_trk_z0 << " chi2: " << tmp_trk_chi2 << " nstub: " << tmp_trk_nstub;
+	cout << "L1 track, pt: " << tmp_trk_pt << " eta: " << tmp_trk_eta << " phi: " 
+	     << tmp_trk_phi << " z0: " << tmp_trk_z0 << " chi2: " << tmp_trk_chi2 << " nstub: " 
+	     << tmp_trk_nstub;
 	if (tmp_trk_genuine) cout << " (is genuine)" << endl; 
 	if (tmp_trk_unknown) cout << " (is unknown)" << endl; 
 	if (tmp_trk_combinatoric) cout << " (is combinatoric)" << endl; 
@@ -973,9 +998,9 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
       m_trk_combinatoric->push_back(tmp_trk_combinatoric);
       
 
-      // ----------------------------------------------------------------------------------------------
+      // -------------------------------------------------------------------------------------------
       // for studying the fake rate
-      // ----------------------------------------------------------------------------------------------
+      // -------------------------------------------------------------------------------------------
 
       edm::Ptr< TrackingParticle > my_tp = MCTruthTTTrackHandle->findTrackingParticlePtr(l1track_ptr);
 
@@ -1078,7 +1103,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     if (abs(tmp_tp_pdgid) <= 8) tmp_tp_nqu++;
     if (abs(tmp_tp_pdgid) > 37) tmp_tp_nhad++;
 
-    // ----------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
     // get d0/z0 propagated back to the IP
 
     float tmp_tp_t = tan(2.0*atan(1.0)-2.0*atan(exp(-tmp_tp_eta)));
@@ -1105,7 +1130,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     if (delphi<-pi) delphi+=2.0*pi;
     if (delphi>pi) delphi-=2.0*pi;
     float tmp_tp_z0 = tmp_tp_vz+tmp_tp_t*delphi/(2.0*K);
-    // ----------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
     
     if (fabs(tmp_tp_z0) > TP_maxZ0) continue;
 
@@ -1124,7 +1149,7 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 			<< " tttracks " << MCTruthTTTrackHandle->findTTTrackPtrs(tp_ptr).size() << endl;
 
 
-    // ----------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
     // only consider TPs associated with >= 1 cluster, or >= X stubs, or have stubs in >= X layers (configurable options)
     
     if (MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() < 1) {
@@ -1145,20 +1170,30 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     }
 
 
-    // ----------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
     // look for L1 tracks matched to the tracking particle
 
     std::vector< edm::Ptr< TTTrack< Ref_Phase2TrackerDigi_ > > > matchedTracks = MCTruthTTTrackHandle->findTTTrackPtrs(tp_ptr);
     
     int nMatch = 0;
+    int nMatchaccept = 0;
     int i_track = -1;
     float i_chi2dof = 99999;
 
+    float tmp_matchtrks_pt   = -999;
+    float tmp_matchtrks_eta   = -999;
+    float tmp_matchtrks_phi   = -999;
+    float tmp_matchtrks_z0   = -999;
+    float tmp_matchtrks_d0   = -999;
+    float tmp_matchtrks_chi2   = -999;
+    int tmp_matchtrks_nstub   = -999;
+
+    bool matched = 0;
     if (matchedTracks.size() > 0) { 
     
       if (DebugMode && (matchedTracks.size()>1)) cout << "TrackingParticle has more than one matched L1 track!" << endl;
 
-      // ----------------------------------------------------------------------------------------------
+      // -------------------------------------------------------------------------------------------
       // loop over matched L1 tracks
       // here, "match" means tracks that can be associated to a TrackingParticle with at least one hit of at least one of its clusters 
       // https://twiki.cern.ch/twiki/bin/viewauth/CMS/SLHCTrackerTriggerSWTools#MC_truth_for_TTTrack
@@ -1171,7 +1206,6 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 	if (MCTruthTTTrackHandle->isLooselyGenuine(matchedTracks.at(it))) tmp_trk_loosegenuine = true;
 	if (LooseMatch && !tmp_trk_loosegenuine) continue;
 	if (!LooseMatch && !tmp_trk_genuine) continue;
-
 
 	if (DebugMode) {
 	  if (MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it)).isNull()) {
@@ -1194,9 +1228,10 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 	}
 
 
-	// ----------------------------------------------------------------------------------------------
-	// further require L1 track to be (loosely) genuine, that there is only one TP matched to the track
-	// + have >= L1Tk_minNStub stubs for it to be a valid match (only relevant is your track collection
+	// -----------------------------------------------------------------------------------------
+	// further require L1 track to be (loosely) genuine, that there is only one TP matched 
+	// to the track + have >= L1Tk_minNStub stubs for it to be a valid match (only relevant 
+	// is your track collection
 	// e.g. stores 3-stub tracks but at plot level you require >= 4 stubs (--> tracklet case)
 
 	int tmp_trk_nstub = matchedTracks.at(it)->getStubRefs().size();
@@ -1218,17 +1253,41 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 	
 	// ensure that track is uniquely matched to the TP we are looking at!
 	if (dmatch_pt<0.1 && dmatch_eta<0.1 && dmatch_phi<0.1 && tmp_tp_pdgid==match_id) { 
-	  nMatch++;
+	  nMatchaccept++;
 	  if (i_track < 0 || tmp_trk_chi2dof < i_chi2dof) {
 	    i_track = it;
 	    i_chi2dof = tmp_trk_chi2dof;
 	  }
 	}
 
+	nMatch++;
+	matched = 1;
+
+        tmp_matchtrks_pt   = matchedTracks.at(it)->getMomentum(L1Tk_nPar).perp();
+	tmp_matchtrks_eta  = matchedTracks.at(it)->getMomentum(L1Tk_nPar).eta();
+        tmp_matchtrks_phi  = matchedTracks.at(it)->getMomentum(L1Tk_nPar).phi();
+	tmp_matchtrks_z0   = matchedTracks.at(it)->getPOCA(L1Tk_nPar).z();
+	if (L1Tk_nPar == 5) {
+	  float tmp_matchtrks_x0 = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).x();
+	  float tmp_matchtrks_y0 = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).y();
+	  tmp_matchtrks_d0 = -tmp_matchtrks_x0*sin(tmp_matchtrks_phi) + tmp_matchtrks_y0*cos(tmp_matchtrks_phi);
+	}
+	tmp_matchtrks_chi2 = matchedTracks.at(it)->getChi2(L1Tk_nPar);
+	tmp_matchtrks_nstub  = (int) matchedTracks.at(it)->getStubRefs().size();
+
+	m_matchtrks_pt ->push_back(tmp_matchtrks_pt);
+	m_matchtrks_eta->push_back(tmp_matchtrks_eta);
+	m_matchtrks_phi->push_back(tmp_matchtrks_phi);
+	m_matchtrks_z0 ->push_back(tmp_matchtrks_z0);
+	m_matchtrks_d0 ->push_back(tmp_matchtrks_d0);
+	m_matchtrks_chi2 ->push_back(tmp_matchtrks_chi2);
+	m_matchtrks_nstub->push_back(tmp_matchtrks_nstub);
+
       }// end loop over matched L1 tracks
 
     }// end has at least 1 matched L1 track
-    // ----------------------------------------------------------------------------------------------
+
+    // ---------------------------------------------------------------------------------------------
 
 
     float tmp_matchtrk_pt   = -999;
@@ -1239,10 +1298,9 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     float tmp_matchtrk_chi2 = -999;
     int tmp_matchtrk_nstub  = -999;
 
+    if (nMatchaccept > 1 && DebugMode) cout << "WARNING *** 2 or more matches to genuine L1 tracks ***" << endl;
 
-    if (nMatch > 1 && DebugMode) cout << "WARNING *** 2 or more matches to genuine L1 tracks ***" << endl;
-
-    if (nMatch > 0) {
+    if (nMatchaccept > 0 && matched) {
       tmp_matchtrk_pt   = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).perp();
       tmp_matchtrk_eta  = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).eta();
       tmp_matchtrk_phi  = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).phi();
@@ -1256,6 +1314,14 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
 
       tmp_matchtrk_chi2 = matchedTracks.at(i_track)->getChi2(L1Tk_nPar);
       tmp_matchtrk_nstub  = (int) matchedTracks.at(i_track)->getStubRefs().size();
+    } if (nMatch <= 0) {
+      m_matchtrks_pt ->push_back(tmp_matchtrks_pt);
+      m_matchtrks_eta ->push_back(tmp_matchtrks_eta);
+      m_matchtrks_phi ->push_back(tmp_matchtrks_phi);
+      m_matchtrks_z0 ->push_back(tmp_matchtrks_z0);
+      m_matchtrks_d0 ->push_back(tmp_matchtrks_d0);
+      m_matchtrks_chi2 ->push_back(tmp_matchtrks_chi2);
+      m_matchtrks_nstub ->push_back(tmp_matchtrks_nstub);
     }
 
     tmp_evt_ntpaccept++;
@@ -1281,6 +1347,16 @@ void L1TrackVtxJetsNtupleMaker::analyze(const edm::Event& iEvent, const edm::Eve
     m_matchtrk_d0 ->push_back(tmp_matchtrk_d0);
     m_matchtrk_chi2 ->push_back(tmp_matchtrk_chi2);
     m_matchtrk_nstub->push_back(tmp_matchtrk_nstub);
+
+    /*if (m_matchtrks_pt->empty()){
+      m_matchtrks_pt ->push_back(tmp_matchtrks_pt);
+      m_matchtrks_eta ->push_back(tmp_matchtrks_eta);
+      m_matchtrks_phi ->push_back(tmp_matchtrks_phi);
+      m_matchtrks_z0 ->push_back(tmp_matchtrks_z0);
+      m_matchtrks_d0 ->push_back(tmp_matchtrks_d0);
+      m_matchtrks_chi2 ->push_back(tmp_matchtrks_chi2);
+      m_matchtrks_nstub ->push_back(tmp_matchtrks_nstub);
+      }*/
 
   } //end loop tracking particles
   m_tp_nmu->push_back(tmp_tp_nmu);
