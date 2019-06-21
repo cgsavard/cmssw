@@ -146,9 +146,19 @@ private:
   std::vector<float>* m_trk_eta;
   std::vector<float>* m_trk_phi;
   std::vector<float>* m_trk_d0;   // (filled if L1Tk_nPar==5, else 999)
+  std::vector<float>* m_trk_x0;
+  std::vector<float>* m_trk_y0;
+  std::vector<float>* m_trk_dxy;
   std::vector<float>* m_trk_z0;
-  std::vector<float>* m_trk_chi2; 
+  std::vector<float>* m_trk_chi2;
+  std::vector<float>* m_trk_chi2pdof;
+  std::vector<float>* m_trk_bendchi2; 
   std::vector<int>*   m_trk_nstub;
+  std::vector<float>* m_trk_stubs_x;
+  std::vector<float>* m_trk_stubs_y;
+  std::vector<float>* m_trk_stubs_z;
+  std::vector<float>* m_trk_stubs_barrel;
+  std::vector<int>*   m_trk_stubs_layer;
   std::vector<int>*   m_trk_genuine;
   std::vector<int>*   m_trk_loose;
   std::vector<int>*   m_trk_unknown;
@@ -287,10 +297,21 @@ void L1TrackNtupleMaker::beginJob()
   m_trk_pt    = new std::vector<float>;
   m_trk_eta   = new std::vector<float>;
   m_trk_phi   = new std::vector<float>;
+  m_trk_x0 = new std::vector<float>;
+  m_trk_y0 = new std::vector<float>;
+  m_trk_dxy = new std::vector<float>;
   m_trk_z0    = new std::vector<float>;
   m_trk_d0    = new std::vector<float>;
   m_trk_chi2  = new std::vector<float>;
+  m_trk_chi2pdof  = new std::vector<float>;
+  m_trk_bendchi2 = new std::vector<float>;
   m_trk_nstub = new std::vector<int>;
+  m_trk_stubs_x = new std::vector<float>;
+  m_trk_stubs_y = new std::vector<float>;
+  m_trk_stubs_z = new std::vector<float>;
+  m_trk_stubs_barrel = new std::vector<float>;
+  m_trk_stubs_layer = new std::vector<int>;
+
   m_trk_genuine      = new std::vector<int>;
   m_trk_loose        = new std::vector<int>;
   m_trk_unknown      = new std::vector<int>;
@@ -349,19 +370,29 @@ void L1TrackNtupleMaker::beginJob()
   eventTree = fs->make<TTree>("eventTree", "Event tree");
 
   if (SaveAllTracks) {
-    eventTree->Branch("trk_pt",    &m_trk_pt);
-    eventTree->Branch("trk_eta",   &m_trk_eta);
-    eventTree->Branch("trk_phi",   &m_trk_phi);
-    eventTree->Branch("trk_d0",    &m_trk_d0);
-    eventTree->Branch("trk_z0",    &m_trk_z0);
-    eventTree->Branch("trk_chi2",  &m_trk_chi2);
-    eventTree->Branch("trk_nstub", &m_trk_nstub);
+    eventTree->Branch("trk_pt",           &m_trk_pt);
+    eventTree->Branch("trk_eta",          &m_trk_eta);
+    eventTree->Branch("trk_phi",          &m_trk_phi);
+    eventTree->Branch("trk_d0",           &m_trk_d0);
+    eventTree->Branch("trk_x0",           &m_trk_x0);
+    eventTree->Branch("trk_y0",           &m_trk_y0);
+    eventTree->Branch("trk_dxy",          &m_trk_dxy);
+    eventTree->Branch("trk_z0",           &m_trk_z0);
+    eventTree->Branch("trk_chi2",         &m_trk_chi2);
+    eventTree->Branch("trk_chi2pdof",     &m_trk_chi2pdof);
+    eventTree->Branch("trk_bendchi2",     &m_trk_bendchi2);
+    eventTree->Branch("trk_nstub",        &m_trk_nstub);
+    eventTree->Branch("trk_stubs_x",      &m_trk_stubs_x);
+    eventTree->Branch("trk_stubs_y",      &m_trk_stubs_y);
+    eventTree->Branch("trk_stubs_z",      &m_trk_stubs_z);
+    eventTree->Branch("trk_stubs_barrel", &m_trk_stubs_barrel);
+    eventTree->Branch("trk_stubs_layer",  &m_trk_stubs_layer);
 
     eventTree->Branch("trk_genuine",      &m_trk_genuine);
     eventTree->Branch("trk_loose",        &m_trk_loose);
     eventTree->Branch("trk_unknown",      &m_trk_unknown);
     eventTree->Branch("trk_combinatoric", &m_trk_combinatoric);
-    eventTree->Branch("trk_fake", &m_trk_fake);
+    eventTree->Branch("trk_fake",         &m_trk_fake);
     eventTree->Branch("trk_matchtp_pdgid",&m_trk_matchtp_pdgid);
     eventTree->Branch("trk_matchtp_pt",   &m_trk_matchtp_pt);
     eventTree->Branch("trk_matchtp_eta",  &m_trk_matchtp_eta);
@@ -438,9 +469,20 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_eta->clear();
     m_trk_phi->clear();
     m_trk_d0->clear();
+    m_trk_x0->clear();
+    m_trk_y0->clear();
+    m_trk_dxy->clear();
     m_trk_z0->clear();
     m_trk_chi2->clear();
+    m_trk_chi2pdof->clear();
+    m_trk_bendchi2->clear();
     m_trk_nstub->clear();
+    m_trk_stubs_x->clear();
+    m_trk_stubs_y->clear();
+    m_trk_stubs_z->clear();
+    m_trk_stubs_barrel->clear();
+    m_trk_stubs_layer->clear();
+
     m_trk_genuine->clear();
     m_trk_loose->clear();
     m_trk_unknown->clear();
@@ -673,19 +715,25 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float tmp_trk_z0   = iterL1Track->getPOCA(L1Tk_nPar).z(); //cm
 
       float tmp_trk_d0 = -999;
+      float tmp_trk_x0 = -999;
+      float tmp_trk_y0 = -999;
+      float tmp_trk_dxy = -999;
       if (L1Tk_nPar == 5) {
-	float tmp_trk_x0   = iterL1Track->getPOCA(L1Tk_nPar).x();
-	float tmp_trk_y0   = iterL1Track->getPOCA(L1Tk_nPar).y();	
+	tmp_trk_x0   = iterL1Track->getPOCA(L1Tk_nPar).x();
+	tmp_trk_y0   = iterL1Track->getPOCA(L1Tk_nPar).y();	
 	tmp_trk_d0 = -tmp_trk_x0*sin(tmp_trk_phi) + tmp_trk_y0*cos(tmp_trk_phi);
+	tmp_trk_dxy = sqrt(tmp_trk_x0*tmp_trk_x0+tmp_trk_y0*tmp_trk_y0);
       }
 
       float tmp_trk_chi2 = iterL1Track->getChi2(L1Tk_nPar);
+      float tmp_trk_bendchi2 = iterL1Track->getStubPtConsistency(L1Tk_nPar);
       int tmp_trk_nstub  = (int) iterL1Track->getStubRefs().size();
+      float tmp_trk_chi2pdof = tmp_trk_chi2/(2*tmp_trk_nstub-L1Tk_nPar);
 
 
       // ----------------------------------------------------------------------------------------------
       // loop over stubs on tracks
-      if (DebugMode && SaveStubs) {
+      //      if (DebugMode && SaveStubs) {
 
 	// loop over stubs
 	std::vector< edm::Ref< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_ > >, TTStub< Ref_Phase2TrackerDigi_ > > > stubRefs = iterL1Track->getStubRefs();
@@ -703,17 +751,26 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	  double z=posStub.z();
 	  
 	  int layer=-999999;
+	  int isBarrel = -1;
 	  if ( detIdStub.subdetId()==StripSubdetector::TOB ) {
 	    layer  = static_cast<int>(tTopo->layer(detIdStub));
-	    cout << "   stub in layer " << layer << " at position x y z = " << x << " " << y << " " << z << endl;
+	    if (DebugMode) cout << "   stub in layer " << layer << " at position x y z = " << x << " " << y << " " << z << endl;
+	    isBarrel = 1;
 	  }
 	  else if ( detIdStub.subdetId()==StripSubdetector::TID ) {
 	    layer  = static_cast<int>(tTopo->layer(detIdStub));
-	    cout << "   stub in disk " << layer << " at position x y z = " << x << " " << y << " " << z << endl;
+	    if (DebugMode) cout << "   stub in disk " << layer << " at position x y z = " << x << " " << y << " " << z << endl;
+	    isBarrel = 0;
 	  }	  
 	  
+	  m_trk_stubs_x->push_back(x);
+	  m_trk_stubs_y->push_back(y);
+	  m_trk_stubs_z->push_back(z);
+	  m_trk_stubs_barrel->push_back(isBarrel);
+	  m_trk_stubs_layer->push_back(layer);
+
 	}//end loop over stubs
-      }
+	//      }
       // ----------------------------------------------------------------------------------------------
 
 
@@ -737,10 +794,14 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       m_trk_pt ->push_back(tmp_trk_pt);
       m_trk_eta->push_back(tmp_trk_eta);
       m_trk_phi->push_back(tmp_trk_phi);
+      m_trk_x0 ->push_back(tmp_trk_x0);
+      m_trk_y0 ->push_back(tmp_trk_y0);
+      m_trk_dxy ->push_back(tmp_trk_dxy);
       m_trk_z0 ->push_back(tmp_trk_z0);
-      if (L1Tk_nPar==5) m_trk_d0->push_back(tmp_trk_d0);
-      else m_trk_d0->push_back(999.);
+      m_trk_d0->push_back(tmp_trk_d0);
       m_trk_chi2 ->push_back(tmp_trk_chi2);
+      m_trk_chi2pdof->push_back(tmp_trk_chi2pdof);
+      m_trk_bendchi2 ->push_back(tmp_trk_bendchi2);
       m_trk_nstub->push_back(tmp_trk_nstub);
       m_trk_genuine->push_back(tmp_trk_genuine);
       m_trk_loose->push_back(tmp_trk_loose);
@@ -764,6 +825,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float myTP_dxy = -999;
 
       if (my_tp.isNull()) myFake = 0;
+      else if (!LooseMatch && !tmp_trk_genuine) myFake = 0;
+      else if (LooseMatch && !tmp_trk_loose) myFake = 0; //loose includes genuine as well
       else {
 	int tmp_eventid = my_tp->eventId().event();
 
