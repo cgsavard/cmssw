@@ -5,8 +5,8 @@
 //////////////////////////
 
 
-#ifndef L1TTRACK_PRDC_H
-#define L1TTRACK_PRDC_H
+#ifndef L1TFPGATRACK_PRDC_H
+#define L1TFPGATRACK_PRDC_H
 
 ////////////////////
 // FRAMEWORK HEADERS
@@ -17,6 +17,7 @@
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/EventSetup.h"
+#include "FWCore/ParameterSet/interface/FileInPath.h"
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 //
 #include "FWCore/Utilities/interface/InputTag.h"
@@ -29,10 +30,10 @@
 #include "DataFormats/Common/interface/Ref.h"
 //
 #include "DataFormats/DetId/interface/DetId.h"
-#include "DataFormats/SiPixelDetId/interface/PXBDetId.h" 
-#include "DataFormats/SiPixelDetId/interface/PXFDetId.h" 
+#include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
+#include "DataFormats/SiPixelDetId/interface/PXFDetId.h"
 #include "DataFormats/Common/interface/DetSetVector.h"
-
+//
 #include "L1Trigger/TrackFindingTracklet/interface/slhcevent.hh"
 #include "L1Trigger/TrackFindingTracklet/interface/L1TBarrel.hh"
 #include "L1Trigger/TrackFindingTracklet/interface/L1TDisk.hh"
@@ -84,6 +85,20 @@
 //
 #include "Geometry/Records/interface/StackedTrackerGeometryRecord.h"
 
+///////////////
+// FPGA emulation
+#include "L1Trigger/TrackFindingTracklet/interface/FPGAConstants.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGASector.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGAWord.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGATimer.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGAVariance.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGATrackletCalculator.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/IMATH_TrackletCalculator.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGACabling.hh"
+
+#include "L1Trigger/TrackFindingTracklet/interface/FPGAGlobal.hh"
+#include "L1Trigger/TrackFindingTracklet/interface/FPGAHistImp.hh"
+
 ////////////////
 // PHYSICS TOOLS
 #include "RecoTracker/TkSeedGenerator/interface/FastHelix.h"
@@ -93,8 +108,8 @@
 #include "DataFormats/GeometrySurface/interface/BoundPlane.h"
 
 #include "L1Trigger/TrackTrigger/interface/StubPtConsistency.h"
-#include "L1Trigger/TrackFindingTracklet/interface/StubKiller.h"
 
+#include "L1Trigger/TrackFindingTracklet/interface/StubKiller.h"
 
 //////////////
 // STD HEADERS
@@ -108,6 +123,12 @@
 using namespace edm;
 
 
+#ifdef IMATH_ROOT
+TFile* var_base::h_file_=0;
+bool   var_base::use_root = false;
+#endif
+
+
 //////////////////////////////
 //                          //
 //     CLASS DEFINITION     //
@@ -117,7 +138,7 @@ using namespace edm;
 /////////////////////////////////////
 // this class is needed to make a map
 // between different types of stubs
-struct L1TStubCompare 
+struct L1TStubCompare
 {
 public:
   bool operator()(const L1TStub& x, const L1TStub& y) const {
@@ -136,22 +157,31 @@ public:
 };
 
 
-class L1TrackProducer : public edm::EDProducer
+class L1FPGATrackProducer : public edm::EDProducer
 {
 public:
 
   /// Constructor/destructor
-  explicit L1TrackProducer(const edm::ParameterSet& iConfig);
-  virtual ~L1TrackProducer();
+  explicit L1FPGATrackProducer(const edm::ParameterSet& iConfig);
+  virtual ~L1FPGATrackProducer();
 
 protected:
-                     
+
 private:
 
   int eventnum;
 
   /// Containers of parameters passed by python configuration file
   edm::ParameterSet config;
+
+  /// File path for configuration files
+  edm::FileInPath fitPatternFile;
+  edm::FileInPath memoryModulesFile;
+  edm::FileInPath processingModulesFile;
+  edm::FileInPath wiresFile;
+
+  edm::FileInPath DTCLinkFile;
+  edm::FileInPath moduleCablingFile;
 
   int failscenario_;
   StubKiller* my_stubkiller;
@@ -161,7 +191,12 @@ private:
   string asciiEventOutName_;
   std::ofstream asciiEventOut_;
 
+  FPGAHistImp* histimp;
+
   string geometryType_;
+
+  FPGASector** sectors;
+  FPGACabling cabling;
 
   edm::ESHandle<TrackerTopology> tTopoHandle;
   edm::ESHandle<TrackerGeometry> tGeomHandle;
@@ -185,7 +220,6 @@ private:
   edm::EDGetTokenT< std::vector< TrackingParticle > > TrackingParticleToken_;
   edm::EDGetTokenT< std::vector< TrackingVertex > > TrackingVertexToken_;
 
-
   /// ///////////////// ///
   /// MANDATORY METHODS ///
   virtual void beginRun( const edm::Run& run, const edm::EventSetup& iSetup );
@@ -196,7 +230,7 @@ private:
 
 //////////////
 // CONSTRUCTOR
-L1TrackProducer::L1TrackProducer(edm::ParameterSet const& iConfig) :
+L1FPGATrackProducer::L1FPGATrackProducer(edm::ParameterSet const& iConfig) :
   config(iConfig),
   MCTruthClusterInputTag(config.getParameter<edm::InputTag>("MCTruthClusterInputTag")),
   MCTruthStubInputTag(config.getParameter<edm::InputTag>("MCTruthStubInputTag")),
@@ -214,8 +248,7 @@ L1TrackProducer::L1TrackProducer(edm::ParameterSet const& iConfig) :
   ttClusterMCTruthToken_(consumes< TTClusterAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthClusterInputTag)),
   ttStubMCTruthToken_(consumes< TTStubAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthStubInputTag)),
   TrackingParticleToken_(consumes< std::vector< TrackingParticle > >(TrackingParticleInputTag)),
-  TrackingVertexToken_(consumes< std::vector< TrackingVertex > >(TrackingVertexInputTag))//,
-
+  TrackingVertexToken_(consumes< std::vector< TrackingVertex > >(TrackingVertexInputTag))
 {
 
   produces< std::vector< TTTrack< Ref_Phase2TrackerDigi_ > > >( "Level1TTTracks" ).setBranchAlias("Level1TTTracks");
@@ -228,32 +261,183 @@ L1TrackProducer::L1TrackProducer(edm::ParameterSet const& iConfig) :
 
   geometryType_ = iConfig.getUntrackedParameter<string>("trackerGeometryType","");
 
+  fitPatternFile = iConfig.getParameter<edm::FileInPath> ("fitPatternFile");
+  processingModulesFile = iConfig.getParameter<edm::FileInPath> ("processingModulesFile");
+  memoryModulesFile = iConfig.getParameter<edm::FileInPath> ("memoryModulesFile");
+  wiresFile = iConfig.getParameter<edm::FileInPath> ("wiresFile");
+
+  DTCLinkFile = iConfig.getParameter<edm::FileInPath> ("DTCLinkFile");
+  moduleCablingFile = iConfig.getParameter<edm::FileInPath> ("moduleCablingFile");
+
+
+  // --------------------------------------------------------------------------------
+  // get all constants
+  // --------------------------------------------------------------------------------
+
+
+  hourglassExtended=iConfig.getUntrackedParameter<bool>("Extended",false);
+  //updating the values for hourglass Extended configuration
+  nbitszprojL456=hourglassExtended?12:8;
+  nbitsphiprojderL123=hourglassExtended?16:8+2;
+  nbitsphiprojderL456=hourglassExtended?16:8+2;
+  phiresidbits=hourglassExtended?16:12;
+  zresidbits=hourglassExtended?16:9;
+  rresidbits=hourglassExtended?16:7;
+  nHelixPar=iConfig.getUntrackedParameter<int>("Hnpar",4);
+
+  krinvpars = FPGATrackletCalculator::ITC_L1L2.rinv_final.get_K();
+  kphi0pars = FPGATrackletCalculator::ITC_L1L2.phi0_final.get_K();
+  ktpars    = FPGATrackletCalculator::ITC_L1L2.t_final.get_K();
+  kz0pars   = FPGATrackletCalculator::ITC_L1L2.z0_final.get_K();
+  kd0pars   = kd0;
+
+  krdisk = kr;
+  kzpars = kz;
+  krprojshiftdisk = FPGATrackletCalculator::ITC_L1L2.rD_0_final.get_K();
+
+  //those can be made more transparent...
+  kphiproj123=kphi0pars*4;
+  kphiproj456=kphi0pars/2;
+  kzproj=kz;
+  kphider=krinvpars*(1<<phiderbitshift);
+  kzder=ktpars*(1<<zderbitshift);
+  kphiprojdisk=kphi0pars*4.0;
+  krprojderdiskshift=krprojderdisk*(1<<rderdiskbitshift);
+  krprojderdisk=(1.0/ktpars)/(1<<t2bits);
+
+
   eventnum=0;
   if (asciiEventOutName_!="") {
     asciiEventOut_.open(asciiEventOutName_.c_str());
   }
 
+  // adding capability of booking histograms internal to tracklet steps
+  if (bookHistos) {
+    histimp=new FPGAHistImp;
+    histimp->init();
+    histimp->bookLayerResidual();
+    histimp->bookDiskResidual();
+    histimp->bookTrackletParams();
+    histimp->bookSeedEff();
+
+  FPGAGlobal::histograms()=histimp;
+  }
+
+  sectors=new FPGASector*[NSector];
+
+  if (debug1) {
+    cout << "cabling DTC links :     "<<DTCLinkFile.fullPath()<<endl;
+    cout << "module cabling :     "<<moduleCablingFile.fullPath()<<endl;
+  }
+
+  cabling.init(DTCLinkFile.fullPath().c_str(),moduleCablingFile.fullPath().c_str());
+
+  for (unsigned int i=0;i<NSector;i++) {
+    sectors[i]=new FPGASector(i);
+  }
+
+  if (debug1) {
+    cout << "fit pattern :     "<<fitPatternFile.fullPath()<<endl;
+    cout << "process modules : "<<processingModulesFile.fullPath()<<endl;
+    cout << "memory modules :  "<<memoryModulesFile.fullPath()<<endl;
+    cout << "wires          :  "<<wiresFile.fullPath()<<endl;
+  }
+
+  fitpatternfile=fitPatternFile.fullPath();
+
+  if (debug1) cout << "Will read memory modules file"<<endl;
+
+  ifstream inmem(memoryModulesFile.fullPath().c_str());
+  assert(inmem.good());
+
+  while (inmem.good()){
+    string memType, memName, size;
+    inmem >>memType>>memName>>size;
+    if (!inmem.good()) continue;
+    if (writetrace) {
+      cout << "Read memory: "<<memType<<" "<<memName<<endl;
+    }
+    for (unsigned int i=0;i<NSector;i++) {
+      sectors[i]->addMem(memType,memName);
+    }
+
+  }
+
+
+  if (debug1) cout << "Will read processing modules file"<<endl;
+
+  ifstream inproc(processingModulesFile.fullPath().c_str());
+  assert(inproc.good());
+
+  while (inproc.good()){
+    string procType, procName;
+    inproc >>procType>>procName;
+    if (!inproc.good()) continue;
+    if (writetrace) {
+      cout << "Read process: "<<procType<<" "<<procName<<endl;
+    }
+    for (unsigned int i=0;i<NSector;i++) {
+      sectors[i]->addProc(procType,procName);
+    }
+
+  }
+
+
+  if (debug1) cout << "Will read wiring information"<<endl;
+
+  ifstream inwire(wiresFile.fullPath().c_str());
+  assert(inwire.good());
+
+  while (inwire.good()){
+    string line;
+    getline(inwire,line);
+    if (!inwire.good()) continue;
+    if (writetrace) {
+      cout << "Line : "<<line<<endl;
+    }
+    stringstream ss(line);
+    string mem,tmp1,procin,tmp2,procout;
+    ss>>mem>>tmp1>>procin;
+    if (procin=="output=>") {
+      procin="";
+      ss>>procout;
+    }
+    else{
+      ss>>tmp2>>procout;
+    }
+
+    for (unsigned int i=0;i<NSector;i++) {
+      sectors[i]->addWire(mem,procin,procout);
+    }
+
+  }
+
+
 }
 
 /////////////
 // DESTRUCTOR
-L1TrackProducer::~L1TrackProducer()
+L1FPGATrackProducer::~L1FPGATrackProducer()
 {
   if (asciiEventOutName_!="") {
     asciiEventOut_.close();
   }
 
-}  
+  if (bookHistos) {
+    histimp->close();
+  }
+
+}
 
 //////////
 // END JOB
-void L1TrackProducer::endRun(const edm::Run& run, const edm::EventSetup& iSetup)
+void L1FPGATrackProducer::endRun(const edm::Run& run, const edm::EventSetup& iSetup)
 {
 }
 
 ////////////
 // BEGIN JOB
-void L1TrackProducer::beginRun(const edm::Run& run, const edm::EventSetup& iSetup )
+void L1FPGATrackProducer::beginRun(const edm::Run& run, const edm::EventSetup& iSetup )
 {
 
   iSetup.get<TrackerTopologyRcd>().get(tTopoHandle);
@@ -283,11 +467,11 @@ void L1TrackProducer::beginRun(const edm::Run& run, const edm::EventSetup& iSetu
 
 //////////
 // PRODUCE
-void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
+void L1FPGATrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
 
-  bool doMyDebug = false; 
-  if (doMyDebug) std::cout << "start in L1TrackProducer::produce()" << std::endl;
+  bool doMyDebug = false;
+  if (doMyDebug) std::cout << "start in L1FPGATrackProducer::produce()" << std::endl;
 
   bool isTilted = true;
   if (geometryType_ == "flat" || geometryType_ == "D10") isTilted = false;
@@ -300,6 +484,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   typedef std::map< L1TStub, edm::Ref< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_ > >, TTStub< Ref_Phase2TrackerDigi_ >  >, L1TStubCompare > stubMapType;
 
+  typedef edm::Ref< edmNew::DetSetVector< TTCluster< Ref_Phase2TrackerDigi_ > >, TTCluster< Ref_Phase2TrackerDigi_ > > TTClusterRef;
 
   /// Prepare output
   std::unique_ptr< std::vector< TTTrack< Ref_Phase2TrackerDigi_ > > > L1TkTracksForOutput( new std::vector< TTTrack< Ref_Phase2TrackerDigi_ > > );
@@ -337,6 +522,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   ev.setIPx(bsPosition.x());
   ev.setIPy(bsPosition.y());
 
+  FPGAGlobal::event()=&ev;
 
   ///////////////////
   // GET SIMTRACKS //
@@ -376,46 +562,52 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   int this_tp = 0;
   std::vector< TrackingParticle >::const_iterator iterTP;
+
+  int ntps=1; //count from 1 ; 0 will mean invalid
+
+  map<edm::Ptr< TrackingParticle >, int > translateTP;
+
   for (iterTP = TrackingParticleHandle->begin(); iterTP != TrackingParticleHandle->end(); ++iterTP) {
- 
+
     edm::Ptr< TrackingParticle > tp_ptr(TrackingParticleHandle, this_tp);
     this_tp++;
 
     // only keep TPs producing a cluster
-    if (MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() < 1) {
-      if (doMyDebug) std::cout << "TP didn't produce a cluster" << std::endl;
-      continue;
-    }
+    if (MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() < 1) continue;
 
     if (iterTP->g4Tracks().size()==0) {
       if (doMyDebug) cout << "TP has no g4Track" << endl;
-    } 
-    else {
-      for (int it=0; it<(int)iterTP->g4Tracks().size(); it++) {
-	int sim_trackid = iterTP->g4Tracks().at(it).trackId();
-	int sim_eventid = iterTP->g4Tracks().at(it).eventId().event();
-	int sim_type = iterTP->g4Tracks().at(it).type();
-	float sim_pt = iterTP->g4Tracks().at(it).momentum().pt();
-	float sim_eta = iterTP->g4Tracks().at(it).momentum().eta();
-	float sim_phi = iterTP->g4Tracks().at(it).momentum().phi();
+      continue;
+    }
 
-	/// Get the corresponding vertex
-	unsigned int vertexIndex = iterTP->g4Tracks().at(it).vertIndex();
-	if (vertexIndex >= simVtxHandle->size() ) continue;
-	const SimVertex& theSimVertex = (*simVtxHandle)[vertexIndex];
-	math::XYZTLorentzVectorD trkVtxPos = theSimVertex.position();
-	GlobalPoint trkVtxCorr = GlobalPoint( trkVtxPos.x() - bsPosition.x(), 
-					      trkVtxPos.y() - bsPosition.y(), 
-					      trkVtxPos.z() - bsPosition.z() );
+    int sim_trackid = ntps;
+    int sim_eventid = iterTP->g4Tracks().at(0).eventId().event();
+    int sim_type = iterTP->pdgId();
+    float sim_pt = iterTP->pt();
+    float sim_eta = iterTP->eta();
+    float sim_phi = iterTP->phi();
 
-	if (doMyDebug) std::cout << "adding sim track with eventID trackID type pt eta phi = " << sim_eventid << " " << sim_trackid << " " 
-				 << sim_type << " " << sim_pt << " " << sim_eta << " " << sim_phi << std::endl;
+    float vx=iterTP->vertex().x();
+    float vy=iterTP->vertex().y();
+    float vz=iterTP->vertex().z();
 
-    	ev.addL1SimTrack(sim_eventid, sim_trackid, sim_type, sim_pt, sim_eta, sim_phi, 
-			 trkVtxCorr.x(), trkVtxCorr.y(), trkVtxCorr.z());
+    if (sim_pt<1.0) continue;
+    if (fabs(vz)>100.0) continue;
+    if (hypot(vx,vy)>50.0) continue;
 
-      }//end loop over associated sim tracks
-    }//end has simtracks
+    if (doMyDebug) std::cout << "adding sim track with eventID trackID type pt eta phi = " << sim_eventid << " " << sim_trackid << " "
+			     << sim_type << " " << sim_pt << " " << sim_eta << " " << sim_phi << std::endl;
+
+    ev.addL1SimTrack(sim_eventid, ntps, sim_type, sim_pt, sim_eta, sim_phi,
+		     vx, vy, vz);
+
+    translateTP[tp_ptr]=ntps;
+
+    //cout << "translateTP : "<<ntps<<endl;
+
+    ntps++;
+
+
   }//end loop over TPs
 
 
@@ -426,9 +618,9 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // loop over stubs
   if (doMyDebug) std::cout << "loop over stubs" << std::endl;
-  
+
   for (auto gd=theTrackerGeom->dets().begin(); gd != theTrackerGeom->dets().end(); gd++) {
-    
+
     DetId detid = (*gd)->geographicalId();
     if(detid.subdetId()!=StripSubdetector::TOB && detid.subdetId()!=StripSubdetector::TID ) continue; // only run on OT
     if(!tTopo->isLower(detid) ) continue; // loop on the stacks: choose the lower arbitrarily
@@ -450,28 +642,43 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     for ( auto stubIter = stubs.begin();stubIter != stubs.end();++stubIter ) {
       edm::Ref< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_  > >, TTStub< Ref_Phase2TrackerDigi_  > >
 	tempStubPtr = edmNew::makeRefTo( Phase2TrackerDigiTTStubHandle, stubIter );
-      
+
+      vector<int> assocTPs;
+
+      for (unsigned int iClus = 0; iClus <= 1; iClus++) { // Loop over both clusters that make up stub.
+
+	const TTClusterRef& ttClusterRef = tempStubPtr->getClusterRef(iClus);
+
+	// Now identify all TP's contributing to either cluster in stub.
+	vector< edm::Ptr< TrackingParticle > > vecTpPtr = MCTruthTTClusterHandle->findTrackingParticlePtrs(ttClusterRef);
+
+	for (edm::Ptr< TrackingParticle> tpPtr : vecTpPtr) {
+	  if (translateTP.find(tpPtr) != translateTP.end()) {
+	    //cout << "Lookup translateTP : "<<translateTP.at(tpPtr)<<endl;
+	    if (iClus==0) {
+	      assocTPs.push_back( translateTP.at(tpPtr) );
+	    } else {
+	      assocTPs.push_back( -translateTP.at(tpPtr) );
+	    }
+	    // N.B. Since not all tracking particles are stored in InputData::vTPs_, sometimes no match will be found.
+	  } else {
+	    assocTPs.push_back(0);
+	  }
+	}
+      }
+
       MeasurementPoint coords = tempStubPtr->getClusterRef(0)->findAverageLocalCoordinatesCentered();
       LocalPoint clustlp = topol->localPosition(coords);
       GlobalPoint posStub  =  theGeomDet->surface().toGlobal(clustlp);
-      
+
       edm::Ptr< TrackingParticle > my_tp = MCTruthTTStubHandle->findTrackingParticlePtr(tempStubPtr);
 
       int eventID=-1;
-      
       if (my_tp.isNull()) {
 	if (doMyDebug) cout << "TP is null pointer" << endl;
-      } 
+      }
       else {
 	if (doMyDebug) cout << "TP is NOT null pointer" << endl;
-	if (my_tp->g4Tracks().size()==0){
-	  if (doMyDebug) cout << "TP has no g4Track" << endl;
-	} 
-	else {
-	  for (int it=0; it<(int)my_tp->g4Tracks().size(); it++) {
-	    eventID = my_tp->g4Tracks().at(it).eventId().event();
-	  }//end sim loop 
-	}
       }
 
       int layer=-999999;
@@ -490,8 +697,8 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	// tobSide = 1: ring- (tilted)
 	// tobSide = 2: ring+ (tilted)
 	// tobSide = 3: barrel (flat)
-	int tobSide = static_cast<int>(tTopo->tobSide(detid)); 
-	
+	int tobSide = static_cast<int>(tTopo->tobSide(detid));
+
 	if (isTilted) {
 	  if (layer==1)
 	    {
@@ -505,7 +712,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	      }
 	      if (tobSide==3) module = 12+static_cast<int>(tTopo->module(detid));
 	    }
-	  
+
 	  if (layer==2)
 	    {
 	      if (tobSide==1) {
@@ -518,7 +725,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	      }
 	      if (tobSide==3) module = 12+static_cast<int>(tTopo->module(detid));
 	    }
-	  
+
 	  if (layer==3)
 	    {
 	      if (tobSide==1) {
@@ -535,7 +742,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       }
       else if ( detid.subdetId()==StripSubdetector::TID ) {
 	layer  = 1000+static_cast<int>(tTopo->tidRing(detid));
-	ladder =  static_cast<int>(tTopo->module(detid)); 
+	ladder =  static_cast<int>(tTopo->module(detid));
 	module = static_cast<int>(tTopo->tidWheel(detid));
 	if (doMyDebug) cout << "disk = " << layer << " vs ring = " << static_cast<int>(tTopo->tidRing(detid)) << endl;
       }
@@ -580,7 +787,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 
       // -----------------------------------------------------
-      // check module orientation, if flipped, need to store that information for track fit 
+      // check module orientation, if flipped, need to store that information for track fit
       // -----------------------------------------------------
 
       const DetId innerDetId = innerCluster->getDetId();
@@ -613,7 +820,6 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	//stub_pt=-stub_pt;
 	stub_bend=-stub_bend;
       }
-
       if (irphi.size()!=0) {
       	strip=irphi[0];
       }
@@ -628,19 +834,17 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 
       if (tempStubPtr->getTriggerDisplacement() > 100.) {
-	if (doMyDebug) std::cout << "... if FE inefficiencies calculated, this stub is thrown out! " << std::endl;
+	if (doMyDebug) std::cout << "... if FE inefficiencies calculated, this stub is thrown out! " << endl;
       }
       else if (killthis) {
 	if (doMyDebug) std::cout << "killing this stub!" << std::endl;
       }
       else {
 	if (doMyDebug) std::cout << "... add this stub to the event!" << std::endl;
-	//FIXME
-	vector<int> tps;
-	if (ev.addStub(layer,ladder,module,strip,eventID,tps,stub_pt,stub_bend,
+	if (ev.addStub(layer,ladder,module,strip,eventID,assocTPs,stub_pt,stub_bend,
 		       posStub.x(),posStub.y(),posStub.z(),
 		       innerStack,irphi,iz,iladder,imodule,isPSmodule,isFlipped)) {
-	  
+
 	  L1TStub lastStub=ev.lastStub();
 	  stubMap[lastStub]=tempStubPtr;
 	}
@@ -648,63 +852,137 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     }
   }
-  
+
   if (doMyDebug) std::cout << "Will actually do L1 tracking:"<<std::endl;
-  
+
+
   //////////////////////////
   // NOW RUN THE L1 tracking
-  
+
   if (asciiEventOutName_!="") {
     ev.write(asciiEventOut_);
   }
 
-#include "L1Tracking.icc"  
+  FPGATimer readTimer;
+  FPGATimer cleanTimer;
+  FPGATimer addStubTimer;
+  FPGATimer VMRouterTimer;
+  FPGATimer TETimer;
+  FPGATimer TEDTimer;
+  FPGATimer TRETimer;
+  FPGATimer TCTimer;
+  FPGATimer TCDTimer;
+  FPGATimer PTTimer;
+  FPGATimer PRTimer;
+  FPGATimer METimer;
+  FPGATimer MCTimer;
+  FPGATimer MPTimer;
+  FPGATimer MTTimer;
+  FPGATimer FTTimer;
+  FPGATimer PDTimer;
 
-  for (unsigned itrack=0; itrack<purgedTracks.size(); itrack++) {
-    L1TTrack track=purgedTracks.get(itrack);
+  if (writeSeeds) {
+    ofstream fout("seeds.txt", ofstream::out);
+    fout.close();
+  }
+
+  bool first=true;
+
+  std::vector<FPGATrack*> tracks;
+
+  int selectmu=0;
+  L1SimTrack simtrk(0,0,0,0.0,0.0,0.0,0.0,0.0,0.0);
+
+  ofstream outres;
+  if (writeResEff) outres.open("trackres.txt");
+
+  ofstream outeff;
+  if (writeResEff) outeff.open("trackeff.txt");
+
+  int nlayershit=0;
+
+#include "FPGA.icc"
+
+
+  int ntracks=0;
+
+
+  for (unsigned itrack=0; itrack<tracks.size(); itrack++) {
+    FPGATrack* track=tracks[itrack];
+
+    if (track->duplicate()) continue;
+
+    ntracks++;
 
     TTTrack<Ref_Phase2TrackerDigi_> aTrack;
 
-    aTrack.setSector(999); //this is currently not retrained by the algorithm
-    aTrack.setWedge(999); //not used by the tracklet implementations
+    unsigned int trksector = track->sector();
+    unsigned int trkseed = (unsigned int) abs(track->seed());
+
+    aTrack.setSector(trksector); //tracklet phi sector
+    aTrack.setWedge(trkseed);    //not a wedge but useful to keep the seed information...
 
     //First do the 4 parameter fit
-    GlobalPoint bsPosition4par(0.0,0.0,track.z04par());
+    GlobalPoint bsPosition4par(0.0,0.0,track->z0());
     aTrack.setPOCA(bsPosition4par,4);
 
-    double pt4par=fabs(track.pt4par(mMagneticFieldStrength));
-    
-    GlobalVector p34par(GlobalVector::Cylindrical(pt4par, 
-						  track.phi04par(), 
-						  pt4par*sinh(track.eta4par())));
+    double pt4par=fabs(track->pt(mMagneticFieldStrength));
+
+    GlobalVector p34par(GlobalVector::Cylindrical(pt4par,
+						  track->phi0(),
+						  pt4par*sinh(track->eta())));
 
     aTrack.setMomentum(p34par,4);
-    aTrack.setRInv(track.rinv4par(),4);
-    aTrack.setChi2(track.chisq4par(),4);
+    aTrack.setRInv(track->rinv(),4);
+    // for emulation, the chisq() function returns the chi2/dof. change for consistency (can always calculated the chi2/dof later).
+    double tmpchi2 = track->chisq()*(2*track->stubs().size()-4);
+    aTrack.setChi2(tmpchi2,4);
 
 
     //Now do the 5 parameter fit
-    GlobalPoint bsPosition5par(-track.d0()*sin(track.phi0()),track.d0()*cos(track.phi0()),track.z0());
+    GlobalPoint bsPosition5par(-track->d0()*sin(track->phi0()),track->d0()*cos(track->phi0()),track->z0());
     aTrack.setPOCA(bsPosition5par,5);
- 
-    double pt5par=fabs(track.pt(mMagneticFieldStrength));
-    
-    GlobalVector p35par(GlobalVector::Cylindrical(pt5par, 
-						  track.phi0(), 
-						  pt5par*sinh(track.eta())));
+
+    double pt5par=fabs(track->pt(mMagneticFieldStrength));
+
+    GlobalVector p35par(GlobalVector::Cylindrical(pt5par,
+						  track->phi0(),
+						  pt5par*sinh(track->eta())));
 
     aTrack.setMomentum(p35par,5);
-    aTrack.setRInv(track.rinv(),5);
-    aTrack.setChi2(track.chisq(),5);
-        
-    vector<L1TStub> stubs = track.getStubs();
+    aTrack.setRInv(track->rinv(),5);
+    double tmpchi25 = track->chisq()*(2*track->stubs().size()-5);
+    aTrack.setChi2(tmpchi25,5);
+
+
+    vector<L1TStub*> stubptrs = track->stubs();
+
+    vector<L1TStub> stubs;
+
+    if (doMyDebug) {
+      cout << "FPGA Track pt, eta, phi, z0, chi2, nstub, rinv = "
+	   << track->pt() << " " << track->eta() << " " << track->phi0() << " " << track->z0() << " " << track->chisq() << " " << stubptrs.size() << " " << track->rinv() << endl;
+      cout << "INT FPGA Track irinv, iphi0, iz0, it, ichisq = "
+	   << track->irinv() << " " << track->iphi0() << " " << track->iz0() << " " << track->it() << " " << track->ichisq() << endl;
+    }
+
+    for (unsigned int i=0;i<stubptrs.size();i++){
+      stubs.push_back(*(stubptrs[i]));
+    }
+
 
     stubMapType::const_iterator it;
-    for (vector<L1TStub>::const_iterator itstubs = stubs.begin(); 
+    for (vector<L1TStub>::const_iterator itstubs = stubs.begin();
 	 itstubs != stubs.end(); itstubs++) {
       it=stubMap.find(*itstubs);
       if (it!=stubMap.end()) {
 	aTrack.addStubRef(it->second);
+	//cout << "Found stub in stub map"<<endl;
+	//cout << "stub:"<<itstubs->layer()<<" "
+	//     <<itstubs->ladder()<<" "
+	//     <<itstubs->module()<<" "
+	//     <<itstubs->iz()<<" "
+	//     <<itstubs->iphi()<<endl;
       }
       else{
 	cout << "Could not find stub in stub map"<<endl;
@@ -717,27 +995,26 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       }
     }
 
-    // pt consistency
-    float consistency4par = StubPtConsistency::getConsistency(aTrack, theTrackerGeom, tTopo, mMagneticFieldStrength, 4);
-    aTrack.setStubPtConsistency(consistency4par, 4);
 
+    // pt consistency
+    float consistency4par = StubPtConsistency::getConsistency(aTrack, theTrackerGeom, tTopo,  mMagneticFieldStrength, 4);
+    aTrack.setStubPtConsistency(consistency4par, 4);
+    //aTrack.setStubPtConsistency(-1.0, 4);
     float consistency5par = StubPtConsistency::getConsistency(aTrack, theTrackerGeom, tTopo, mMagneticFieldStrength, 5);
     aTrack.setStubPtConsistency(consistency5par,5);
-
+    //aTrack.setStubPtConsistency(-1.0,5);
 
     L1TkTracksForOutput->push_back(aTrack);
 
   }
 
-
   iEvent.put( std::move(L1TkTracksForOutput), "Level1TTTracks");
-
 
 } /// End of produce()
 
 
 // ///////////////////////////
 // // DEFINE THIS AS A PLUG-IN
-DEFINE_FWK_MODULE(L1TrackProducer);
+DEFINE_FWK_MODULE(L1FPGATrackProducer);
 
 #endif
