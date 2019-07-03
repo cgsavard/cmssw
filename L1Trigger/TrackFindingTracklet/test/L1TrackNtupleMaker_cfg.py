@@ -71,7 +71,7 @@ ttbar_files_pu200 = cms.untracked.vstring( #2000 events (100 each)
 "/store/relval/CMSSW_10_6_0_pre4/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU25ns_106X_upgrade2023_realistic_v2_2023D41PU200-v1/10000/CEF89EDC-2AF1-5946-8EEB-6B4D0B54557D.root"
 )
 
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(5))
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(3))
 
 process.source = cms.Source("PoolSource", 
                             fileNames = ttbar_files_nopu,
@@ -82,7 +82,7 @@ process.source = cms.Source("PoolSource",
                               )
                             )
 
-#process.TFileService = cms.Service("TFileService", fileName = cms.string('ttbar_nopu_genuine_5000evt.root'), closeFileFast = cms.untracked.bool(True))
+#process.TFileService = cms.Service("TFileService", fileName = cms.string('ttbar_pu200_loose_1000evt.root'), closeFileFast = cms.untracked.bool(True))
 process.TFileService = cms.Service("TFileService", fileName = cms.string('outTest.root'), closeFileFast = cms.untracked.bool(True))
 
 
@@ -132,9 +132,11 @@ process.L1TrackNtuple = cms.EDAnalyzer('L1TrackNtupleMaker',
                                        DebugMode = cms.bool(False),      # printout lots of debug statements
                                        SaveAllTracks = cms.bool(True),   # save *all* L1 tracks, not just truth matched to primary particle
                                        SaveStubs = cms.bool(False),      # save some info for *all* stubs
-                                       LooseMatch = cms.bool(False),      # allow loosely genuine matching?
+                                       SaveTPs = cms.bool(False),
+                                       LooseMatch = cms.bool(True),      # allow loosely genuine matching?
                                        L1Tk_nPar = cms.int32(4),         # use 4 or 5-parameter L1 track fit ??
                                        L1Tk_minNStub = cms.int32(4),     # L1 tracks with >= 4 stubs
+                                       L1Tk_maxZ0 = cms.double(20.0),
                                        TP_minNStub = cms.int32(4),       # require TP to have >= X number of stubs associated with it
                                        TP_minNStubLayer = cms.int32(4),  # require TP to have stubs in >= X layers/disks
                                        TP_minPt = cms.double(2.0),       # only save TPs with pt > X GeV
@@ -148,10 +150,8 @@ process.L1TrackNtuple = cms.EDAnalyzer('L1TrackNtupleMaker',
                                        MCTruthClusterInputTag = cms.InputTag("TTClusterAssociatorFromPixelDigis", "ClusterAccepted"),
                                        MCTruthStubInputTag = cms.InputTag("TTStubAssociatorFromPixelDigis", "StubAccepted"),
                                        TrackingParticleInputTag = cms.InputTag("mix", "MergedTrackTruth"),
-                                       TrackingVertexInputTag = cms.InputTag("mix", "MergedTrackTruth"),
+                                       TrackingVertexInputTag = cms.InputTag("mix", "MergedTrackTruth")
                                        ## tracking in jets stuff (--> requires AK4 genjet collection present!)
-                                       TrackingInJets = cms.bool(True),
-                                       GenJetInputTag = cms.InputTag("ak4GenJets", ""),
                                        )
 process.ana = cms.Path(process.L1TrackNtuple)
 
@@ -164,3 +164,4 @@ process.ana = cms.Path(process.L1TrackNtuple)
 # use this to only run tracking + track associator
 #process.schedule = cms.Schedule(process.TTTracksWithTruth,process.ana)            # floating-point simulation
 process.schedule = cms.Schedule(process.TTTracksEmulationWithTruth,process.ana)    # emulation
+

@@ -107,8 +107,10 @@ private:
   bool DebugMode;       // lots of debug printout statements
   bool SaveAllTracks;   // store in ntuples not only truth-matched tracks but ALL tracks
   bool SaveStubs;       // option to save also stubs in the ntuples (makes them large...)
+  bool SaveTPs;
   bool LooseMatch;      // use loose MC-matching instead
   int L1Tk_nPar;        // use 4 or 5 parameter track fit? 
+  double L1Tk_maxZ0;
   int TP_minNStub;      // require TPs to have >= minNStub (defining efficiency denominator) (==0 means to only require >= 1 cluster)
   int TP_minNStubLayer; // require TPs to have stubs in >= minNStubLayer layers/disks (defining efficiency denominator)
   double TP_minPt;      // save TPs with pt > minPt 
@@ -159,6 +161,7 @@ private:
   std::vector<float>* m_trk_stubs_z;
   std::vector<float>* m_trk_stubs_barrel;
   std::vector<int>*   m_trk_stubs_layer;
+  std::vector<int>*   m_trk_stubs_ps;
   std::vector<int>*   m_trk_genuine;
   std::vector<int>*   m_trk_loose;
   std::vector<int>*   m_trk_unknown;
@@ -214,7 +217,6 @@ private:
   std::vector<float>* m_allstub_matchTP_pt;    // -999 if not matched
   std::vector<float>* m_allstub_matchTP_eta;   // -999 if not matched
   std::vector<float>* m_allstub_matchTP_phi;   // -999 if not matched
-
   std::vector<int>*   m_allstub_genuine;
 
 };
@@ -236,8 +238,10 @@ L1TrackNtupleMaker::L1TrackNtupleMaker(edm::ParameterSet const& iConfig) :
   DebugMode        = iConfig.getParameter< bool >("DebugMode");
   SaveAllTracks    = iConfig.getParameter< bool >("SaveAllTracks");
   SaveStubs        = iConfig.getParameter< bool >("SaveStubs");
+  SaveTPs          = iConfig.getParameter< bool >("SaveTPs");
   LooseMatch       = iConfig.getParameter< bool >("LooseMatch");
   L1Tk_nPar        = iConfig.getParameter< int >("L1Tk_nPar");
+  L1Tk_maxZ0       = iConfig.getParameter< double >("L1Tk_maxZ0");
   TP_minNStub      = iConfig.getParameter< int >("TP_minNStub");
   TP_minNStubLayer = iConfig.getParameter< int >("TP_minNStubLayer");
   TP_minPt         = iConfig.getParameter< double >("TP_minPt");
@@ -311,6 +315,7 @@ void L1TrackNtupleMaker::beginJob()
   m_trk_stubs_z = new std::vector<float>;
   m_trk_stubs_barrel = new std::vector<float>;
   m_trk_stubs_layer = new std::vector<int>;
+  m_trk_stubs_ps = new std::vector<int>;
 
   m_trk_genuine      = new std::vector<int>;
   m_trk_loose        = new std::vector<int>;
@@ -387,6 +392,7 @@ void L1TrackNtupleMaker::beginJob()
     eventTree->Branch("trk_stubs_z",      &m_trk_stubs_z);
     eventTree->Branch("trk_stubs_barrel", &m_trk_stubs_barrel);
     eventTree->Branch("trk_stubs_layer",  &m_trk_stubs_layer);
+    eventTree->Branch("trk_stubs_ps",     &m_trk_stubs_ps);
 
     eventTree->Branch("trk_genuine",      &m_trk_genuine);
     eventTree->Branch("trk_loose",        &m_trk_loose);
@@ -401,27 +407,29 @@ void L1TrackNtupleMaker::beginJob()
     eventTree->Branch("trk_matchtp_dxy",  &m_trk_matchtp_dxy);
   }
 
-  eventTree->Branch("tp_pt",     &m_tp_pt);
-  eventTree->Branch("tp_eta",    &m_tp_eta);
-  eventTree->Branch("tp_phi",    &m_tp_phi);
-  eventTree->Branch("tp_dxy",    &m_tp_dxy);
-  eventTree->Branch("tp_d0",     &m_tp_d0);
-  eventTree->Branch("tp_z0",     &m_tp_z0);
-  eventTree->Branch("tp_d0_prod",&m_tp_d0_prod);
-  eventTree->Branch("tp_z0_prod",&m_tp_z0_prod);
-  eventTree->Branch("tp_pdgid",  &m_tp_pdgid);
-  eventTree->Branch("tp_nmatch", &m_tp_nmatch);
-  eventTree->Branch("tp_nstub", &m_tp_nstub);
-  eventTree->Branch("tp_eventid",&m_tp_eventid);
-  eventTree->Branch("tp_charge",&m_tp_charge);
+  if (SaveTPs) {
+    eventTree->Branch("tp_pt",     &m_tp_pt);
+    eventTree->Branch("tp_eta",    &m_tp_eta);
+    eventTree->Branch("tp_phi",    &m_tp_phi);
+    eventTree->Branch("tp_dxy",    &m_tp_dxy);
+    eventTree->Branch("tp_d0",     &m_tp_d0);
+    eventTree->Branch("tp_z0",     &m_tp_z0);
+    eventTree->Branch("tp_d0_prod",&m_tp_d0_prod);
+    eventTree->Branch("tp_z0_prod",&m_tp_z0_prod);
+    eventTree->Branch("tp_pdgid",  &m_tp_pdgid);
+    eventTree->Branch("tp_nmatch", &m_tp_nmatch);
+    eventTree->Branch("tp_nstub", &m_tp_nstub);
+    eventTree->Branch("tp_eventid",&m_tp_eventid);
+    eventTree->Branch("tp_charge",&m_tp_charge);
 
-  eventTree->Branch("matchtrk_pt",      &m_matchtrk_pt);
-  eventTree->Branch("matchtrk_eta",     &m_matchtrk_eta);
-  eventTree->Branch("matchtrk_phi",     &m_matchtrk_phi);
-  eventTree->Branch("matchtrk_z0",      &m_matchtrk_z0);
-  eventTree->Branch("matchtrk_d0",      &m_matchtrk_d0);
-  eventTree->Branch("matchtrk_chi2",    &m_matchtrk_chi2);
-  eventTree->Branch("matchtrk_nstub",   &m_matchtrk_nstub);
+    eventTree->Branch("matchtrk_pt",      &m_matchtrk_pt);
+    eventTree->Branch("matchtrk_eta",     &m_matchtrk_eta);
+    eventTree->Branch("matchtrk_phi",     &m_matchtrk_phi);
+    eventTree->Branch("matchtrk_z0",      &m_matchtrk_z0);
+    eventTree->Branch("matchtrk_d0",      &m_matchtrk_d0);
+    eventTree->Branch("matchtrk_chi2",    &m_matchtrk_chi2);
+    eventTree->Branch("matchtrk_nstub",   &m_matchtrk_nstub);
+  }
 
   if (SaveStubs) {
     eventTree->Branch("allstub_x", &m_allstub_x);
@@ -482,6 +490,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_stubs_z->clear();
     m_trk_stubs_barrel->clear();
     m_trk_stubs_layer->clear();
+    m_trk_stubs_ps->clear();
 
     m_trk_genuine->clear();
     m_trk_loose->clear();
@@ -496,27 +505,30 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_matchtp_dxy->clear();
   }
   
-  m_tp_pt->clear();
-  m_tp_eta->clear();
-  m_tp_phi->clear();
-  m_tp_dxy->clear();
-  m_tp_d0->clear();
-  m_tp_z0->clear();
-  m_tp_d0_prod->clear();
-  m_tp_z0_prod->clear();
-  m_tp_pdgid->clear();
-  m_tp_nmatch->clear();
-  m_tp_nstub->clear();
-  m_tp_eventid->clear();
-  m_tp_charge->clear();
 
-  m_matchtrk_pt->clear();
-  m_matchtrk_eta->clear();
-  m_matchtrk_phi->clear();
-  m_matchtrk_z0->clear();
-  m_matchtrk_d0->clear();
-  m_matchtrk_chi2->clear();
-  m_matchtrk_nstub->clear();
+  if (SaveTPs){
+    m_tp_pt->clear();
+    m_tp_eta->clear();
+    m_tp_phi->clear();
+    m_tp_dxy->clear();
+    m_tp_d0->clear();
+    m_tp_z0->clear();
+    m_tp_d0_prod->clear();
+    m_tp_z0_prod->clear();
+    m_tp_pdgid->clear();
+    m_tp_nmatch->clear();
+    m_tp_nstub->clear();
+    m_tp_eventid->clear();
+    m_tp_charge->clear();
+
+    m_matchtrk_pt->clear();
+    m_matchtrk_eta->clear();
+    m_matchtrk_phi->clear();
+    m_matchtrk_z0->clear();
+    m_matchtrk_d0->clear();
+    m_matchtrk_chi2->clear();
+    m_matchtrk_nstub->clear();
+  }
 
   if (SaveStubs) {
     m_allstub_x->clear();
@@ -565,8 +577,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
   // tracking particles
   edm::Handle< std::vector< TrackingParticle > > TrackingParticleHandle;
   edm::Handle< std::vector< TrackingVertex > > TrackingVertexHandle;
-  iEvent.getByToken(TrackingParticleToken_, TrackingParticleHandle);
-  iEvent.getByToken(TrackingVertexToken_, TrackingVertexHandle);
+  if (SaveTPs) iEvent.getByToken(TrackingParticleToken_, TrackingParticleHandle);
+  if (SaveTPs) iEvent.getByToken(TrackingVertexToken_, TrackingVertexHandle);
 
 
   // -----------------------------------------------------------------------------------------------
@@ -713,6 +725,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float tmp_trk_eta  = iterL1Track->getMomentum(L1Tk_nPar).eta();
       float tmp_trk_phi  = iterL1Track->getMomentum(L1Tk_nPar).phi();
       float tmp_trk_z0   = iterL1Track->getPOCA(L1Tk_nPar).z(); //cm
+      //if (fabs(tmp_trk_z0) > L1Tk_maxZ0) continue; //add z0 cut since all that don't pass are "fake"
 
       float tmp_trk_d0 = -999;
       float tmp_trk_x0 = -999;
@@ -745,6 +758,9 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	  MeasurementPoint coords = stubRefs.at(is)->getClusterRef(0)->findAverageLocalCoordinatesCentered();      
 	  const GeomDet* theGeomDet = theTrackerGeom->idToDet(detIdStub);
 	  Global3DPoint posStub = theGeomDet->surface().toGlobal( theGeomDet->topology().localPosition(coords) );
+
+	  const PixelGeomDetUnit* theGeomDet_temp = dynamic_cast< const PixelGeomDetUnit* >(theGeomDet);
+	  const PixelTopology* topol = dynamic_cast< const PixelTopology* >( &(theGeomDet_temp->specificTopology()) );
 	  
 	  double x=posStub.x();
 	  double y=posStub.y();
@@ -763,11 +779,15 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	    isBarrel = 0;
 	  }	  
 	  
+	  int isPSmodule = 0;
+	  if (topol->nrows() == 960) isPSmodule=1;
+
 	  m_trk_stubs_x->push_back(x);
 	  m_trk_stubs_y->push_back(y);
 	  m_trk_stubs_z->push_back(z);
 	  m_trk_stubs_barrel->push_back(isBarrel);
 	  m_trk_stubs_layer->push_back(layer);
+	  m_trk_stubs_ps->push_back(isPSmodule);
 
 	}//end loop over stubs
 	//      }
@@ -824,9 +844,14 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float myTP_z0 = -999;
       float myTP_dxy = -999;
 
+      double phi_cut = 5*.01; //5*(std dev of resolution)
+      double eta_cut = 5*.006;
+
       if (my_tp.isNull()) myFake = 0;
       else if (!LooseMatch && !tmp_trk_genuine) myFake = 0;
       else if (LooseMatch && !tmp_trk_loose) myFake = 0; //loose includes genuine as well
+      else if (fabs( tmp_trk_eta - my_tp->p4().eta() ) >= eta_cut 
+	       || fabs( tmp_trk_phi - my_tp->p4().phi() ) >= phi_cut) myFake = 0;
       else {
 	int tmp_eventid = my_tp->eventId().event();
 
@@ -844,7 +869,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	myTP_dxy = sqrt(myTP_x0*myTP_x0 + myTP_y0*myTP_y0);
 
 	if (DebugMode) {
-	  cout << "TP matched to track has pt = " << my_tp->p4().pt() << " eta = " << my_tp->momentum().eta() 
+	  cout << "TP matched to track has pt = " << my_tp->p4().pt() 
+	       << " eta = " << my_tp->momentum().eta() 
 	       << " phi = " << my_tp->momentum().phi() << " z0 = " << my_tp->vertex().z()
 	       << " pdgid = " <<  my_tp->pdgId() << " dxy = " << myTP_dxy << endl;
 	}
@@ -869,242 +895,243 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
   // loop over tracking particles
   // ----------------------------------------------------------------------------------------------
 
-  if (DebugMode) cout << endl << "Loop over tracking particles!" << endl;
+  if (SaveTPs){
+    if (DebugMode) cout << endl << "Loop over tracking particles!" << endl;
 
-  int this_tp = 0;
-  std::vector< TrackingParticle >::const_iterator iterTP;
-  for (iterTP = TrackingParticleHandle->begin(); iterTP != TrackingParticleHandle->end(); ++iterTP) {
+    int this_tp = 0;
+    std::vector< TrackingParticle >::const_iterator iterTP;
+    for (iterTP = TrackingParticleHandle->begin(); iterTP != TrackingParticleHandle->end(); ++iterTP) {
  
-    edm::Ptr< TrackingParticle > tp_ptr(TrackingParticleHandle, this_tp);
-    this_tp++;
-
-    int tmp_eventid = iterTP->eventId().event();
-    if (MyProcess != 1 && tmp_eventid > 0) continue; //only care about tracking particles from the primary interaction (except for MyProcess==1, i.e. looking at all TPs)
-
-    float tmp_tp_pt  = iterTP->pt();
-    float tmp_tp_eta = iterTP->eta();
-    float tmp_tp_phi = iterTP->phi(); 
-    float tmp_tp_vz  = iterTP->vz();
-    float tmp_tp_vx  = iterTP->vx();
-    float tmp_tp_vy  = iterTP->vy();
-    int tmp_tp_pdgid = iterTP->pdgId();
-    float tmp_tp_z0_prod = tmp_tp_vz;
-    float tmp_tp_d0_prod = -tmp_tp_vx*sin(tmp_tp_phi) + tmp_tp_vy*cos(tmp_tp_phi);
-
-    if (MyProcess==13 && abs(tmp_tp_pdgid) != 13) continue;
-    if (MyProcess==11 && abs(tmp_tp_pdgid) != 11) continue;
-    if ((MyProcess==6 || MyProcess==15 || MyProcess==211) && abs(tmp_tp_pdgid) != 211) continue;
-
-
-    if (tmp_tp_pt < TP_minPt) continue;
-    if (fabs(tmp_tp_eta) > TP_maxEta) continue;
-
-
-    // ----------------------------------------------------------------------------------------------
-    // get d0/z0 propagated back to the IP
-
-    float tmp_tp_t = tan(2.0*atan(1.0)-2.0*atan(exp(-tmp_tp_eta)));
-
-    float delx = -tmp_tp_vx;
-    float dely = -tmp_tp_vy;
-	
-    float A = 0.01*0.5696;
-    float Kmagnitude = A / tmp_tp_pt;
+      edm::Ptr< TrackingParticle > tp_ptr(TrackingParticleHandle, this_tp);
+      this_tp++;
+      
+      int tmp_eventid = iterTP->eventId().event();
+      if (MyProcess != 1 && tmp_eventid > 0) continue; //only care about tracking particles from the primary interaction (except for MyProcess==1, i.e. looking at all TPs)
+      
+      float tmp_tp_pt  = iterTP->pt();
+      float tmp_tp_eta = iterTP->eta();
+      float tmp_tp_phi = iterTP->phi(); 
+      float tmp_tp_vz  = iterTP->vz();
+      float tmp_tp_vx  = iterTP->vx();
+      float tmp_tp_vy  = iterTP->vy();
+      int tmp_tp_pdgid = iterTP->pdgId();
+      float tmp_tp_z0_prod = tmp_tp_vz;
+      float tmp_tp_d0_prod = -tmp_tp_vx*sin(tmp_tp_phi) + tmp_tp_vy*cos(tmp_tp_phi);
+      
+      if (MyProcess==13 && abs(tmp_tp_pdgid) != 13) continue;
+      if (MyProcess==11 && abs(tmp_tp_pdgid) != 11) continue;
+      if ((MyProcess==6 || MyProcess==15 || MyProcess==211) && abs(tmp_tp_pdgid) != 211) continue;
+      
+      
+      if (tmp_tp_pt < TP_minPt) continue;
+      if (fabs(tmp_tp_eta) > TP_maxEta) continue;
+      
+      
+      // ----------------------------------------------------------------------------------------------
+      // get d0/z0 propagated back to the IP
+      
+      float tmp_tp_t = tan(2.0*atan(1.0)-2.0*atan(exp(-tmp_tp_eta)));
+      
+      float delx = -tmp_tp_vx;
+      float dely = -tmp_tp_vy;
+      
+      float A = 0.01*0.5696;
+      float Kmagnitude = A / tmp_tp_pt;
+      
+      float tmp_tp_charge = tp_ptr->charge();
+      float K = Kmagnitude * tmp_tp_charge;
+      float d = 0;
+      
+      float tmp_tp_x0p = delx - (d + 1./(2. * K)*sin(tmp_tp_phi));
+      float tmp_tp_y0p = dely + (d + 1./(2. * K)*cos(tmp_tp_phi));
+      float tmp_tp_rp = sqrt(tmp_tp_x0p*tmp_tp_x0p + tmp_tp_y0p*tmp_tp_y0p);
+      float tmp_tp_d0 = tmp_tp_charge*tmp_tp_rp - (1. / (2. * K));
+      
+      tmp_tp_d0 = tmp_tp_d0*(-1); //fix d0 sign
+      
+      static double pi = 4.0*atan(1.0);
+      float delphi = tmp_tp_phi-atan2(-K*tmp_tp_x0p,K*tmp_tp_y0p);
+      if (delphi<-pi) delphi+=2.0*pi;
+      if (delphi>pi) delphi-=2.0*pi;
+      float tmp_tp_z0 = tmp_tp_vz+tmp_tp_t*delphi/(2.0*K);
+      // ----------------------------------------------------------------------------------------------
     
-    float tmp_tp_charge = tp_ptr->charge();
-    float K = Kmagnitude * tmp_tp_charge;
-    float d = 0;
-	
-    float tmp_tp_x0p = delx - (d + 1./(2. * K)*sin(tmp_tp_phi));
-    float tmp_tp_y0p = dely + (d + 1./(2. * K)*cos(tmp_tp_phi));
-    float tmp_tp_rp = sqrt(tmp_tp_x0p*tmp_tp_x0p + tmp_tp_y0p*tmp_tp_y0p);
-    float tmp_tp_d0 = tmp_tp_charge*tmp_tp_rp - (1. / (2. * K));
-	
-    tmp_tp_d0 = tmp_tp_d0*(-1); //fix d0 sign
-
-    static double pi = 4.0*atan(1.0);
-    float delphi = tmp_tp_phi-atan2(-K*tmp_tp_x0p,K*tmp_tp_y0p);
-    if (delphi<-pi) delphi+=2.0*pi;
-    if (delphi>pi) delphi-=2.0*pi;
-    float tmp_tp_z0 = tmp_tp_vz+tmp_tp_t*delphi/(2.0*K);
-    // ----------------------------------------------------------------------------------------------
-    
-    if (fabs(tmp_tp_z0) > TP_maxZ0) continue;
+      if (fabs(tmp_tp_z0) > TP_maxZ0) continue;
 
 
-    // for pions in ttbar, only consider TPs coming from near the IP!
-    float dxy = sqrt(tmp_tp_vx*tmp_tp_vx + tmp_tp_vy*tmp_tp_vy);
-    float tmp_tp_dxy = dxy;
-    if (MyProcess==6 && (dxy > 1.0)) continue;
+      // for pions in ttbar, only consider TPs coming from near the IP!
+      float dxy = sqrt(tmp_tp_vx*tmp_tp_vx + tmp_tp_vy*tmp_tp_vy);
+      float tmp_tp_dxy = dxy;
+      if (MyProcess==6 && (dxy > 1.0)) continue;
 
-    if (DebugMode) cout << "Tracking particle, pt: " << tmp_tp_pt << " eta: " << tmp_tp_eta << " phi: " << tmp_tp_phi 
-			<< " z0: " << tmp_tp_z0 << " d0: " << tmp_tp_d0 
-			<< " z_prod: " << tmp_tp_z0_prod << " d_prod: " << tmp_tp_d0_prod 
-			<< " pdgid: " << tmp_tp_pdgid << " eventID: " << iterTP->eventId().event()
-			<< " ttclusters " << MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() 
-			<< " ttstubs " << MCTruthTTStubHandle->findTTStubRefs(tp_ptr).size()
-			<< " tttracks " << MCTruthTTTrackHandle->findTTTrackPtrs(tp_ptr).size() << endl;
+      if (DebugMode) cout << "Tracking particle, pt: " << tmp_tp_pt << " eta: " << tmp_tp_eta << " phi: " << tmp_tp_phi 
+			  << " z0: " << tmp_tp_z0 << " d0: " << tmp_tp_d0 
+			  << " z_prod: " << tmp_tp_z0_prod << " d_prod: " << tmp_tp_d0_prod 
+			  << " pdgid: " << tmp_tp_pdgid << " eventID: " << iterTP->eventId().event()
+			  << " ttclusters " << MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() 
+			  << " ttstubs " << MCTruthTTStubHandle->findTTStubRefs(tp_ptr).size()
+			  << " tttracks " << MCTruthTTTrackHandle->findTTTrackPtrs(tp_ptr).size() << endl;
 
-
-    // ----------------------------------------------------------------------------------------------
-    // only consider TPs associated with >= 1 cluster, or >= X stubs, or have stubs in >= X layers (configurable options)
-    
-    if (MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() < 1) {
-      if (DebugMode) cout << "No matching TTClusters for TP, continuing..." << endl;
-      continue;
-    }
-
-
-    std::vector< edm::Ref< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_ > >, TTStub< Ref_Phase2TrackerDigi_ > > > theStubRefs = MCTruthTTStubHandle->findTTStubRefs(tp_ptr);
-    int nStubTP = (int) theStubRefs.size(); 
-
-    if (TP_minNStub > 0) {
-      if (DebugMode) cout << "Only consider TPs with >= " << TP_minNStub << " stubs" << endl;
-      if (nStubTP < TP_minNStub) {
-	if (DebugMode) cout << "TP fails minimum nbr stubs requirement! Continuing..." << endl;
-	continue;
-      }
-    }
-
-
-    // ----------------------------------------------------------------------------------------------
-    // look for L1 tracks matched to the tracking particle
-
-    std::vector< edm::Ptr< TTTrack< Ref_Phase2TrackerDigi_ > > > matchedTracks = MCTruthTTTrackHandle->findTTTrackPtrs(tp_ptr);
-    
-    int nMatch = 0;
-    int i_track = -1;
-    float i_chi2dof = 99999;
-
-    if (matchedTracks.size() > 0) { 
-    
-      if (DebugMode && (matchedTracks.size()>1)) cout << "TrackingParticle has more than one matched L1 track!" << endl;
 
       // ----------------------------------------------------------------------------------------------
-      // loop over matched L1 tracks
-      // here, "match" means tracks that can be associated to a TrackingParticle with at least one hit of at least one of its clusters 
-      // https://twiki.cern.ch/twiki/bin/viewauth/CMS/SLHCTrackerTriggerSWTools#MC_truth_for_TTTrack
-
-      for (int it=0; it<(int)matchedTracks.size(); it++) {
-
-	bool tmp_trk_genuine = false;
-	bool tmp_trk_loosegenuine = false;
-	if (MCTruthTTTrackHandle->isGenuine(matchedTracks.at(it))) tmp_trk_genuine = true;
-	if (MCTruthTTTrackHandle->isLooselyGenuine(matchedTracks.at(it))) tmp_trk_loosegenuine = true;
-	if (LooseMatch && !tmp_trk_loosegenuine) continue;
-	if (!LooseMatch && !tmp_trk_genuine) continue;
-
-
-	if (DebugMode) {
-	  if (MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it)).isNull()) {
-	    cout << "track matched to TP is NOT uniquely matched to a TP" << endl;
-	  }
-	  else {
-	    edm::Ptr< TrackingParticle > my_tp = MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it));
-	    cout << "TP matched to track matched to TP ... tp pt = " << my_tp->p4().pt() << " eta = " << my_tp->momentum().eta() 
-		 << " phi = " << my_tp->momentum().phi() << " z0 = " << my_tp->vertex().z() << endl;
-	  }
-	  cout << "   ... matched L1 track has pt = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).perp() 
-	       << " eta = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).eta()
-	       << " phi = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).phi()
-	       << " chi2 = " << matchedTracks.at(it)->getChi2(L1Tk_nPar) 
-	       << " consistency = " << matchedTracks.at(it)->getStubPtConsistency(L1Tk_nPar) 
-	       << " z0 = " << matchedTracks.at(it)->getPOCA(L1Tk_nPar).z() 
-	       << " nstub = " << matchedTracks.at(it)->getStubRefs().size();
-	  if (tmp_trk_genuine) cout << " (genuine!) " << endl;
-	  if (tmp_trk_loosegenuine) cout << " (loose genuine!) " << endl;
-	}
-
-
-	// ----------------------------------------------------------------------------------------------
-	// further require L1 track to be (loosely) genuine, that there is only one TP matched to the track
-	// + have >= L1Tk_minNStub stubs for it to be a valid match (only relevant is your track collection
-	// e.g. stores 3-stub tracks but at plot level you require >= 4 stubs (--> tracklet case)
-
-	int tmp_trk_nstub = matchedTracks.at(it)->getStubRefs().size();
-
-	if (tmp_trk_nstub < L1Tk_minNStub) continue;
-	
-	float dmatch_pt  = 999;
-	float dmatch_eta = 999;
-	float dmatch_phi = 999;
-	int match_id = 999;
-
-	edm::Ptr< TrackingParticle > my_tp = MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it));
-	dmatch_pt  = fabs(my_tp->p4().pt() - tmp_tp_pt);
-	dmatch_eta = fabs(my_tp->p4().eta() - tmp_tp_eta);
-	dmatch_phi = fabs(my_tp->p4().phi() - tmp_tp_phi);
-	match_id = my_tp->pdgId();
-
-	float tmp_trk_chi2dof = (matchedTracks.at(it)->getChi2(L1Tk_nPar)) / (2*tmp_trk_nstub - L1Tk_nPar);
-	
-	// ensure that track is uniquely matched to the TP we are looking at!
-	if (dmatch_pt<0.1 && dmatch_eta<0.1 && dmatch_phi<0.1 && tmp_tp_pdgid==match_id) { 
-	  nMatch++;
-	  if (i_track < 0 || tmp_trk_chi2dof < i_chi2dof) {
-	    i_track = it;
-	    i_chi2dof = tmp_trk_chi2dof;
-	  }
-	}
-
-      }// end loop over matched L1 tracks
-
-    }// end has at least 1 matched L1 track
-    // ----------------------------------------------------------------------------------------------
-
-
-    float tmp_matchtrk_pt   = -999;
-    float tmp_matchtrk_eta  = -999;
-    float tmp_matchtrk_phi  = -999;
-    float tmp_matchtrk_z0   = -999;
-    float tmp_matchtrk_d0   = -999;
-    float tmp_matchtrk_chi2 = -999;
-    int tmp_matchtrk_nstub  = -999;
-
-
-    if (nMatch > 1 && DebugMode) cout << "WARNING *** 2 or more matches to genuine L1 tracks ***" << endl;
-
-    if (nMatch > 0) {
-      tmp_matchtrk_pt   = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).perp();
-      tmp_matchtrk_eta  = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).eta();
-      tmp_matchtrk_phi  = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).phi();
-      tmp_matchtrk_z0   = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).z();
-
-      if (L1Tk_nPar == 5) {
-	float tmp_matchtrk_x0 = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).x();
-	float tmp_matchtrk_y0 = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).y();
-	tmp_matchtrk_d0 = -tmp_matchtrk_x0*sin(tmp_matchtrk_phi) + tmp_matchtrk_y0*cos(tmp_matchtrk_phi);
+      // only consider TPs associated with >= 1 cluster, or >= X stubs, or have stubs in >= X layers (configurable options)
+    
+      if (MCTruthTTClusterHandle->findTTClusterRefs(tp_ptr).size() < 1) {
+	if (DebugMode) cout << "No matching TTClusters for TP, continuing..." << endl;
+	continue;
       }
 
-      tmp_matchtrk_chi2 = matchedTracks.at(i_track)->getChi2(L1Tk_nPar);
-      tmp_matchtrk_nstub  = (int) matchedTracks.at(i_track)->getStubRefs().size();
-    }
+
+      std::vector< edm::Ref< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_ > >, TTStub< Ref_Phase2TrackerDigi_ > > > theStubRefs = MCTruthTTStubHandle->findTTStubRefs(tp_ptr);
+      int nStubTP = (int) theStubRefs.size(); 
+
+      if (TP_minNStub > 0) {
+	if (DebugMode) cout << "Only consider TPs with >= " << TP_minNStub << " stubs" << endl;
+	if (nStubTP < TP_minNStub) {
+	  if (DebugMode) cout << "TP fails minimum nbr stubs requirement! Continuing..." << endl;
+	  continue;
+	}
+      }
 
 
-    m_tp_pt->push_back(tmp_tp_pt);
-    m_tp_eta->push_back(tmp_tp_eta);
-    m_tp_phi->push_back(tmp_tp_phi);
-    m_tp_dxy->push_back(tmp_tp_dxy);
-    m_tp_z0->push_back(tmp_tp_z0);
-    m_tp_d0->push_back(tmp_tp_d0);
-    m_tp_z0_prod->push_back(tmp_tp_z0_prod);
-    m_tp_d0_prod->push_back(tmp_tp_d0_prod);
-    m_tp_pdgid->push_back(tmp_tp_pdgid);
-    m_tp_nmatch->push_back(nMatch);
-    m_tp_nstub->push_back(nStubTP);
-    m_tp_eventid->push_back(tmp_eventid);
-    m_tp_charge->push_back(tmp_tp_charge);
+      // ----------------------------------------------------------------------------------------------
+      // look for L1 tracks matched to the tracking particle
 
-    m_matchtrk_pt ->push_back(tmp_matchtrk_pt);
-    m_matchtrk_eta->push_back(tmp_matchtrk_eta);
-    m_matchtrk_phi->push_back(tmp_matchtrk_phi);
-    m_matchtrk_z0 ->push_back(tmp_matchtrk_z0);
-    m_matchtrk_d0 ->push_back(tmp_matchtrk_d0);
-    m_matchtrk_chi2 ->push_back(tmp_matchtrk_chi2);
-    m_matchtrk_nstub->push_back(tmp_matchtrk_nstub);
+      std::vector< edm::Ptr< TTTrack< Ref_Phase2TrackerDigi_ > > > matchedTracks = MCTruthTTTrackHandle->findTTTrackPtrs(tp_ptr);
+    
+      int nMatch = 0;
+      int i_track = -1;
+      float i_chi2dof = 99999;
 
-  } //end loop tracking particles
-  
+      if (matchedTracks.size() > 0) { 
+    
+	if (DebugMode && (matchedTracks.size()>1)) cout << "TrackingParticle has more than one matched L1 track!" << endl;
+
+	// ----------------------------------------------------------------------------------------------
+	// loop over matched L1 tracks
+	// here, "match" means tracks that can be associated to a TrackingParticle with at least one hit of at least one of its clusters 
+	// https://twiki.cern.ch/twiki/bin/viewauth/CMS/SLHCTrackerTriggerSWTools#MC_truth_for_TTTrack
+
+	for (int it=0; it<(int)matchedTracks.size(); it++) {
+
+	  bool tmp_trk_genuine = false;
+	  bool tmp_trk_loosegenuine = false;
+	  if (MCTruthTTTrackHandle->isGenuine(matchedTracks.at(it))) tmp_trk_genuine = true;
+	  if (MCTruthTTTrackHandle->isLooselyGenuine(matchedTracks.at(it))) tmp_trk_loosegenuine = true;
+	  if (LooseMatch && !tmp_trk_loosegenuine) continue;
+	  if (!LooseMatch && !tmp_trk_genuine) continue;
+
+
+	  if (DebugMode) {
+	    if (MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it)).isNull()) {
+	      cout << "track matched to TP is NOT uniquely matched to a TP" << endl;
+	    }
+	    else {
+	      edm::Ptr< TrackingParticle > my_tp = MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it));
+	      cout << "TP matched to track matched to TP ... tp pt = " << my_tp->p4().pt() << " eta = " << my_tp->momentum().eta() 
+		   << " phi = " << my_tp->momentum().phi() << " z0 = " << my_tp->vertex().z() << endl;
+	    }
+	    cout << "   ... matched L1 track has pt = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).perp() 
+		 << " eta = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).eta()
+		 << " phi = " << matchedTracks.at(it)->getMomentum(L1Tk_nPar).phi()
+		 << " chi2 = " << matchedTracks.at(it)->getChi2(L1Tk_nPar) 
+		 << " consistency = " << matchedTracks.at(it)->getStubPtConsistency(L1Tk_nPar) 
+		 << " z0 = " << matchedTracks.at(it)->getPOCA(L1Tk_nPar).z() 
+		 << " nstub = " << matchedTracks.at(it)->getStubRefs().size();
+	    if (tmp_trk_genuine) cout << " (genuine!) " << endl;
+	    if (tmp_trk_loosegenuine) cout << " (loose genuine!) " << endl;
+	  }
+
+
+	  // ----------------------------------------------------------------------------------------------
+	  // further require L1 track to be (loosely) genuine, that there is only one TP matched to the track
+	  // + have >= L1Tk_minNStub stubs for it to be a valid match (only relevant is your track collection
+	  // e.g. stores 3-stub tracks but at plot level you require >= 4 stubs (--> tracklet case)
+
+	  int tmp_trk_nstub = matchedTracks.at(it)->getStubRefs().size();
+
+	  if (tmp_trk_nstub < L1Tk_minNStub) continue;
+	
+	  float dmatch_pt  = 999;
+	  float dmatch_eta = 999;
+	  float dmatch_phi = 999;
+	  int match_id = 999;
+
+	  edm::Ptr< TrackingParticle > my_tp = MCTruthTTTrackHandle->findTrackingParticlePtr(matchedTracks.at(it));
+	  dmatch_pt  = fabs(my_tp->p4().pt() - tmp_tp_pt);
+	  dmatch_eta = fabs(my_tp->p4().eta() - tmp_tp_eta);
+	  dmatch_phi = fabs(my_tp->p4().phi() - tmp_tp_phi);
+	  match_id = my_tp->pdgId();
+
+	  float tmp_trk_chi2dof = (matchedTracks.at(it)->getChi2(L1Tk_nPar)) / (2*tmp_trk_nstub - L1Tk_nPar);
+	
+	  // ensure that track is uniquely matched to the TP we are looking at!
+	  if (dmatch_pt<0.1 && dmatch_eta<0.1 && dmatch_phi<0.1 && tmp_tp_pdgid==match_id) { 
+	    nMatch++;
+	    if (i_track < 0 || tmp_trk_chi2dof < i_chi2dof) {
+	      i_track = it;
+	      i_chi2dof = tmp_trk_chi2dof;
+	    }
+	  }
+
+	}// end loop over matched L1 tracks
+
+      }// end has at least 1 matched L1 track
+      // ----------------------------------------------------------------------------------------------
+
+
+      float tmp_matchtrk_pt   = -999;
+      float tmp_matchtrk_eta  = -999;
+      float tmp_matchtrk_phi  = -999;
+      float tmp_matchtrk_z0   = -999;
+      float tmp_matchtrk_d0   = -999;
+      float tmp_matchtrk_chi2 = -999;
+      int tmp_matchtrk_nstub  = -999;
+
+
+      if (nMatch > 1 && DebugMode) cout << "WARNING *** 2 or more matches to genuine L1 tracks ***" << endl;
+
+      if (nMatch > 0) {
+	tmp_matchtrk_pt   = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).perp();
+	tmp_matchtrk_eta  = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).eta();
+	tmp_matchtrk_phi  = matchedTracks.at(i_track)->getMomentum(L1Tk_nPar).phi();
+	tmp_matchtrk_z0   = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).z();
+
+	if (L1Tk_nPar == 5) {
+	  float tmp_matchtrk_x0 = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).x();
+	  float tmp_matchtrk_y0 = matchedTracks.at(i_track)->getPOCA(L1Tk_nPar).y();
+	  tmp_matchtrk_d0 = -tmp_matchtrk_x0*sin(tmp_matchtrk_phi) + tmp_matchtrk_y0*cos(tmp_matchtrk_phi);
+	}
+
+	tmp_matchtrk_chi2 = matchedTracks.at(i_track)->getChi2(L1Tk_nPar);
+	tmp_matchtrk_nstub  = (int) matchedTracks.at(i_track)->getStubRefs().size();
+      }
+
+
+      m_tp_pt->push_back(tmp_tp_pt);
+      m_tp_eta->push_back(tmp_tp_eta);
+      m_tp_phi->push_back(tmp_tp_phi);
+      m_tp_dxy->push_back(tmp_tp_dxy);
+      m_tp_z0->push_back(tmp_tp_z0);
+      m_tp_d0->push_back(tmp_tp_d0);
+      m_tp_z0_prod->push_back(tmp_tp_z0_prod);
+      m_tp_d0_prod->push_back(tmp_tp_d0_prod);
+      m_tp_pdgid->push_back(tmp_tp_pdgid);
+      m_tp_nmatch->push_back(nMatch);
+      m_tp_nstub->push_back(nStubTP);
+      m_tp_eventid->push_back(tmp_eventid);
+      m_tp_charge->push_back(tmp_tp_charge);
+
+      m_matchtrk_pt ->push_back(tmp_matchtrk_pt);
+      m_matchtrk_eta->push_back(tmp_matchtrk_eta);
+      m_matchtrk_phi->push_back(tmp_matchtrk_phi);
+      m_matchtrk_z0 ->push_back(tmp_matchtrk_z0);
+      m_matchtrk_d0 ->push_back(tmp_matchtrk_d0);
+      m_matchtrk_chi2 ->push_back(tmp_matchtrk_chi2);
+      m_matchtrk_nstub->push_back(tmp_matchtrk_nstub);
+
+    } //end loop tracking particles
+  }
 
   eventTree->Fill();
 
