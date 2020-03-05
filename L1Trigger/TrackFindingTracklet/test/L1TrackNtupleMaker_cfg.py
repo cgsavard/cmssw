@@ -111,7 +111,7 @@ if   (L1TRKALGO == 'HYBRID'):
     L1TRK_PROC  =  process.TTTracksFromTrackletEmulation
     L1TRK_NAME  = "TTTracksFromTrackletEmulation"
     L1TRK_LABEL = "Level1TTTracks"
-elif (L1TRKALGO == 'TRACKLET_FLOAT'):
+elif (L1TRKALGO == 'TRACKLET_EMU'):
     process.load("L1Trigger.TrackFindingTracklet.L1TrackletEmulationTracks_cff")
     L1TRK_PROC  =  process.L1TrackletEmulationTracks
     L1TRK_NAME  = "TTTracksFromTracklet"
