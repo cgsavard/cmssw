@@ -10,6 +10,8 @@ process = cms.Process("L1TrackNtuple")
 #GEOMETRY = "D21"
 GEOMETRY = "D41"
 
+# Specify L1 tracking algo ('HYBRID', 'TRACKLET_EMU')
+L1TRKALGO = 'HYBRID'
  
 ############################################################
 # import standard configurations
@@ -103,6 +105,22 @@ if GEOMETRY != "TkOnly":
 process.TTClusterStub = cms.Path(process.TrackTriggerClustersStubs)
 process.TTClusterStubTruth = cms.Path(process.TrackTriggerAssociatorClustersStubs)
 
+NHELIXPAR = 4
+if   (L1TRKALGO == 'HYBRID'):
+    process.load("L1Trigger.TrackFindingTracklet.Tracklet_cfi") 
+    L1TRK_PROC  =  process.TTTracksFromTrackletEmulation
+    L1TRK_NAME  = "TTTracksFromTrackletEmulation"
+    L1TRK_LABEL = "Level1TTTracks"
+elif (L1TRKALGO == 'TRACKLET_FLOAT'):
+    process.load("L1Trigger.TrackFindingTracklet.L1TrackletEmulationTracks_cff")
+    L1TRK_PROC  =  process.L1TrackletEmulationTracks
+    L1TRK_NAME  = "TTTracksFromTracklet"
+    L1TRK_LABEL = "Level1TTTracks"
+else:
+    print "ERROR: Unknown L1TRKALGO option"
+    exit(1)
+
+
 from L1Trigger.TrackFindingTracklet.Tracklet_cfi import *
 
 ### floating-point simulation
@@ -111,10 +129,15 @@ from L1Trigger.TrackFindingTracklet.Tracklet_cfi import *
 #process.TTTracks = cms.Path(process.L1TrackletTracks)
 #process.TTTracksWithTruth = cms.Path(process.L1TrackletTracksWithAssociators)
 
+## emulation OLD
+#process.load("L1Trigger.TrackFindingTracklet.L1TrackletEmulationTracks_cff")
+#process.TTTracksEmulation = cms.Path(process.L1TrackletEmulationTracks)
+#process.TTTracksEmulationWithTruth = cms.Path(process.L1TrackletEmulationTracksWithAssociators)
+
 ## emulation 
-process.load("L1Trigger.TrackFindingTracklet.L1TrackletEmulationTracks_cff")
-process.TTTracksEmulation = cms.Path(process.L1TrackletEmulationTracks)
-process.TTTracksEmulationWithTruth = cms.Path(process.L1TrackletEmulationTracksWithAssociators)
+process.TTTracksEmulation = cms.Path(process.offlineBeamSpot*L1TRK_PROC)
+process.TTTracksEmulationWithTruth = cms.Path(process.offlineBeamSpot*L1TRK_PROC*process.TrackTriggerAssociatorTracks)
+
 
 
 ############################################################
@@ -132,9 +155,9 @@ process.L1TrackNtuple = cms.EDAnalyzer('L1TrackNtupleMaker',
                                        DebugMode = cms.bool(False),      # printout lots of debug statements
                                        SaveAllTracks = cms.bool(True),   # save *all* L1 tracks, not just truth matched to primary particle
                                        SaveStubs = cms.bool(False),      # save some info for *all* stubs
-                                       SaveTPs = cms.bool(False),
+                                       SaveTPs = cms.bool(True),
                                        LooseMatch = cms.bool(True),      # allow loosely genuine matching?
-                                       L1Tk_nPar = cms.int32(4),         # use 4 or 5-parameter L1 track fit ??
+                                       L1Tk_nPar = cms.int32(NHELIXPAR),         # use 4 or 5-parameter L1 track fit ??
                                        L1Tk_minNStub = cms.int32(4),     # L1 tracks with >= 4 stubs
                                        L1Tk_maxZ0 = cms.double(20.0),
                                        TP_minNStub = cms.int32(4),       # require TP to have >= X number of stubs associated with it
