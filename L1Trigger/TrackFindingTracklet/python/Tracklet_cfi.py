@@ -21,7 +21,7 @@ TTTracksFromTrackletEmulation = cms.EDProducer("L1FPGATrackProducer",
                                                DTCLinkLayerDiskFile = cms.FileInPath('L1Trigger/TrackFindingTracklet/data/dtclinklayerdisk.dat'),
                                                moduleCablingFile  = cms.FileInPath('L1Trigger/TrackFindingTracklet/data/modules_T5v3_27SP_nonant_tracklet.dat'),
                                                # Quality Flag and Quality params
-                                               TrackQuality =cms.bool(False),
+                                               TrackQuality = cms.bool(False),
                                                TrackQualityPSet = cms.PSet(TrackQualityParams)
     )
 
@@ -35,7 +35,7 @@ TTTracksFromExtendedTrackletEmulation = TTTracksFromTrackletEmulation.clone(
                                                tableTEDFile = cms.FileInPath('L1Trigger/TrackFindingTracklet/data/table_TED/table_TED_D1PHIA1_D2PHIA1.txt'),
                                                tableTREFile = cms.FileInPath('L1Trigger/TrackFindingTracklet/data/table_TRE/table_TRE_D1AD2A_1.txt'),
                                                # Quality Flag and Quality params
-                                               TrackQuality =cms.bool(False),
+                                               TrackQuality = cms.bool(False),
                                                TrackQualityPSet = cms.PSet(TrackQualityParams)
     )
 
