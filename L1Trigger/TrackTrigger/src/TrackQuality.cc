@@ -240,20 +240,20 @@ void TrackQuality::setTrackQuality(TTTrack<Ref_Phase2TrackerDigi_>& aTrack) {
     cms::Ort::FloatArrays ortinput;
     cms::Ort::FloatArrays ortoutputs;
 
-    std::vector<float> Transformed_features = featureTransform(aTrack, this->featureNames_);
-    cms::Ort::ONNXRuntime Runtime(this->ONNXmodel_.fullPath());  //Setup ONNX runtime
+    std::vector<float> transformed_features = featureTransform(aTrack, this->featureNames_);
+    cms::Ort::ONNXRuntime runtime(this->ONNXmodel_.fullPath());  //Setup ONNX runtime
 
     ortinput_names.push_back(this->ONNXInputName_);
-    ortoutput_names = Runtime.getOutputNames();
+    ortoutput_names = runtime.getOutputNames();
 
     //ONNX runtime recieves a vector of vectors of floats so push back the input
     // vector of float to create a 1,1,21 ortinput
-    ortinput.push_back(Transformed_features);
+    ortinput.push_back(transformed_features);
 
     // batch_size 1 as only one set of transformed features is being processed
     int batch_size = 1;
     // Run classification
-    ortoutputs = Runtime.run(ortinput_names, ortinput, ortoutput_names, batch_size);
+    ortoutputs = runtime.run(ortinput_names, ortinput, ortoutput_names, batch_size);
 
     if (this->qualityAlgorithm_ == "NN") {
       aTrack.settrkMVA1(ortoutputs[0][0]);
