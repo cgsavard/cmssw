@@ -176,6 +176,16 @@ private:
   std::vector<int>* m_trk_injet_highpt;   //is the track within dR<0.4 of a genjet with pt > 100 GeV?
   std::vector<int>* m_trk_injet_vhighpt;  //is the track within dR<0.4 of a genjet with pt > 200 GeV?
 
+  // trk stub variables
+  std::vector<float>* m_trkstub_stubbend;
+  std::vector<int>* m_trkstub_isbarrel;
+  std::vector<float>* m_trkstub_signedpt;
+  std::vector<float>* m_trkstub_r;
+  std::vector<float>* m_trkstub_z;
+  std::vector<float>* m_trkstub_correction;
+  std::vector<float>* m_trkstub_trkbend;
+  std::vector<float>* m_trkstub_benddiff;
+
   // all tracking particles
   std::vector<float>* m_tp_pt;
   std::vector<float>* m_tp_eta;
@@ -344,6 +354,16 @@ void L1TrackNtupleMaker::beginJob() {
   m_trk_injet_highpt = new std::vector<int>;
   m_trk_injet_vhighpt = new std::vector<int>;
 
+  // trk stubs
+  m_trkstub_stubbend = new std::vector<float>;
+  m_trkstub_isbarrel = new std::vector<int>;
+  m_trkstub_signedpt = new std::vector<float>;
+  m_trkstub_r = new std::vector<float>;
+  m_trkstub_z = new std::vector<float>;
+  m_trkstub_correction = new std::vector<float>;
+  m_trkstub_trkbend = new std::vector<float>;
+  m_trkstub_benddiff = new std::vector<float>;
+
   m_tp_pt = new std::vector<float>;
   m_tp_eta = new std::vector<float>;
   m_tp_phi = new std::vector<float>;
@@ -443,6 +463,15 @@ void L1TrackNtupleMaker::beginJob() {
       eventTree->Branch("trk_injet_vhighpt", &m_trk_injet_vhighpt);
     }
   }
+
+  eventTree->Branch("trkstub_stubbend", &m_trkstub_stubbend);
+  eventTree->Branch("trkstub_isbarrel", &m_trkstub_isbarrel);
+  eventTree->Branch("trkstub_signedpt", &m_trkstub_signedpt);
+  eventTree->Branch("trkstub_z", &m_trkstub_z);
+  eventTree->Branch("trkstub_r", &m_trkstub_r);
+  eventTree->Branch("trkstub_correction", &m_trkstub_correction);
+  eventTree->Branch("trkstub_trkbend", &m_trkstub_trkbend);
+  eventTree->Branch("trkstub_benddiff", &m_trkstub_benddiff);
 
   eventTree->Branch("tp_pt", &m_tp_pt);
   eventTree->Branch("tp_eta", &m_tp_eta);
@@ -567,6 +596,15 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_injet_highpt->clear();
     m_trk_injet_vhighpt->clear();
   }
+
+  m_trkstub_stubbend->clear();
+  m_trkstub_isbarrel->clear();
+  m_trkstub_signedpt->clear();
+  m_trkstub_z->clear();
+  m_trkstub_r->clear();
+  m_trkstub_correction->clear();
+  m_trkstub_trkbend->clear();
+  m_trkstub_benddiff->clear();
 
   m_tp_pt->clear();
   m_tp_eta->clear();
@@ -899,24 +937,69 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
           const GeomDet* theGeomDet = theTrackerGeom->idToDet(detIdStub);
           Global3DPoint posStub = theGeomDet->surface().toGlobal(theGeomDet->topology().localPosition(coords));
 
-          double x = posStub.x();
-          double y = posStub.y();
-          double z = posStub.z();
+          float stub_x = posStub.x();
+          float stub_y = posStub.y();
+          float stub_z = posStub.z();
+	  float stub_r = posStub.perp();
 
           int layer = -999999;
           if (detIdStub.subdetId() == StripSubdetector::TOB) {
             layer = static_cast<int>(tTopo->layer(detIdStub));
-            if (DebugMode)
-              edm::LogVerbatim("Tracklet")
-                  << "   stub in layer " << layer << " at position x y z = " << x << " " << y << " " << z;
             tmp_trk_lhits += pow(10, layer - 1);
           } else if (detIdStub.subdetId() == StripSubdetector::TID) {
             layer = static_cast<int>(tTopo->layer(detIdStub));
-            if (DebugMode)
-              edm::LogVerbatim("Tracklet")
-                  << "   stub in disk " << layer << " at position x y z = " << x << " " << y << " " << z;
             tmp_trk_dhits += pow(10, layer - 1);
           }
+
+	  bool is_barrel = (detIdStub.subdetId() == StripSubdetector::TOB);
+
+	  float stubBend = stubRefs.at(is)->bendFE();
+	  if (!is_barrel && stub_z < 0.0)
+	    stubBend = -stubBend;  // flip sign of bend if in negative end cap
+
+	  //float signedPt = 0.3*3.811202/100.0/(iterL1Track->rInv());
+
+	  bool tiltedBarrel = (is_barrel && tTopo->tobSide(detIdStub) != 3);
+	  float gradient = 0.886454;
+	  float intercept = 0.504148;
+	  float correction;
+	  if (tiltedBarrel)
+	    correction = gradient * fabs(stub_z) / stub_r + intercept;
+	  else if (is_barrel)
+	    correction = 1;
+	  else
+	    correction = fabs(stub_z) / stub_r;
+
+	  const GeomDetUnit* det0 = theTrackerGeom->idToDetUnit(detIdStub);
+	  const GeomDetUnit* det1 = theTrackerGeom->idToDetUnit(tTopo->partnerDetId(detIdStub));
+	  const PixelGeomDetUnit* unit = reinterpret_cast<const PixelGeomDetUnit*>(det0);
+	  const PixelTopology& topo = unit->specificTopology();
+
+	  // Calculation of snesor spacing obtained from TMTT: https://github.com/CMS-TMTT/cmssw/blob/TMTT_938/L1Trigger/TrackFindingTMTT/src/Stub.cc#L138-L146
+	  float stripPitch = topo.pitch().first;
+
+	  float modMinR = std::min(det0->position().perp(), det1->position().perp());
+	  float modMaxR = std::max(det0->position().perp(), det1->position().perp());
+	  float modMinZ = std::min(det0->position().z(), det1->position().z());
+	  float modMaxZ = std::max(det0->position().z(), det1->position().z());
+	  float sensorSpacing = sqrt((modMaxR - modMinR) * (modMaxR - modMinR) + (modMaxZ - modMinZ) * (modMaxZ - modMinZ));
+
+	  float speedOfLightConverted = CLHEP::c_light / 1.0E5;
+	  float mMagneticFieldStrength = iterL1Track->bField();
+	  float signedPt = speedOfLightConverted * mMagneticFieldStrength / iterL1Track->rInv();
+
+	  float trackBend = -(sensorSpacing * stub_r * mMagneticFieldStrength * (speedOfLightConverted / 2)) /
+	    (stripPitch * signedPt * correction);
+	  float bendDiff = trackBend - stubBend;
+
+	  m_trkstub_stubbend->push_back(stubBend);
+	  m_trkstub_isbarrel->push_back(is_barrel);
+	  m_trkstub_signedpt->push_back(signedPt);
+	  m_trkstub_z->push_back(stub_z);
+	  m_trkstub_r->push_back(stub_r);
+	  m_trkstub_correction->push_back(correction);
+	  m_trkstub_trkbend->push_back(trackBend);
+	  m_trkstub_benddiff->push_back(bendDiff);
 
         }  //end loop over stubs
       }

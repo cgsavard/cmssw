@@ -156,6 +156,7 @@ public:
   unsigned int hitPattern() const;
 
   /// set new Bfield
+  double bField() const;
   void setBField(double aBField);
 
   void setTrackWordBits();
@@ -406,6 +407,11 @@ double TTTrack<T>::stubPtConsistency() const {
 template <typename T>
 unsigned int TTTrack<T>::hitPattern() const {
   return theHitPattern_;
+}
+
+template <typename T>
+double TTTrack<T>::bField() const {
+  return theBField_;
 }
 
 /// set B field if need be
