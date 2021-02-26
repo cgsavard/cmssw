@@ -185,6 +185,7 @@ private:
   std::vector<float>* m_trkstub_correction;
   std::vector<float>* m_trkstub_trkbend;
   std::vector<float>* m_trkstub_benddiff;
+  std::vector<float>* m_trkstub_rinv;
 
   // all tracking particles
   std::vector<float>* m_tp_pt;
@@ -363,6 +364,7 @@ void L1TrackNtupleMaker::beginJob() {
   m_trkstub_correction = new std::vector<float>;
   m_trkstub_trkbend = new std::vector<float>;
   m_trkstub_benddiff = new std::vector<float>;
+  m_trkstub_rinv = new std::vector<float>;
 
   m_tp_pt = new std::vector<float>;
   m_tp_eta = new std::vector<float>;
@@ -472,6 +474,7 @@ void L1TrackNtupleMaker::beginJob() {
   eventTree->Branch("trkstub_correction", &m_trkstub_correction);
   eventTree->Branch("trkstub_trkbend", &m_trkstub_trkbend);
   eventTree->Branch("trkstub_benddiff", &m_trkstub_benddiff);
+  eventTree->Branch("trkstub_rinv", &m_trkstub_rinv);
 
   eventTree->Branch("tp_pt", &m_tp_pt);
   eventTree->Branch("tp_eta", &m_tp_eta);
@@ -605,6 +608,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
   m_trkstub_correction->clear();
   m_trkstub_trkbend->clear();
   m_trkstub_benddiff->clear();
+  m_trkstub_rinv->clear();
 
   m_tp_pt->clear();
   m_tp_eta->clear();
@@ -957,8 +961,6 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	  if (!is_barrel && stub_z < 0.0)
 	    stubBend = -stubBend;  // flip sign of bend if in negative end cap
 
-	  //float signedPt = 0.3*3.811202/100.0/(iterL1Track->rInv());
-
 	  bool tiltedBarrel = (is_barrel && tTopo->tobSide(detIdStub) != 3);
 	  float gradient = 0.886454;
 	  float intercept = 0.504148;
@@ -992,6 +994,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	    (stripPitch * signedPt * correction);
 	  float bendDiff = trackBend - stubBend;
 
+	  float rinv = iterL1Track->rInv();
+
 	  m_trkstub_stubbend->push_back(stubBend);
 	  m_trkstub_isbarrel->push_back(is_barrel);
 	  m_trkstub_signedpt->push_back(signedPt);
@@ -1000,6 +1004,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	  m_trkstub_correction->push_back(correction);
 	  m_trkstub_trkbend->push_back(trackBend);
 	  m_trkstub_benddiff->push_back(bendDiff);
+	  m_trkstub_rinv->push_back(rinv);
 
         }  //end loop over stubs
       }
