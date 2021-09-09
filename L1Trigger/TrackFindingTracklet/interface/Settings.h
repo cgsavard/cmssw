@@ -100,6 +100,8 @@ namespace trklet {
         throw cms::Exception("BadConfig")
             << __FILE__ << " " << __LINE__ << " maxStep module = " << module << " not known";
       }
+      if (module=="VMR")
+	return maxstep_.at(module);
       return maxstep_.at(module) + maxstepoffset_;
     }
 
@@ -604,7 +606,7 @@ namespace trklet {
     // Offset to the maximum number of steps in each processing step:
     // Set to 0 (default) means standard trunction
     // Set to large value, e.g. 10000, to disable truncation
-    unsigned int maxstepoffset_{0};
+    unsigned int maxstepoffset_{10000};
 
     //Default number of processing steps for one event
     std::unordered_map<std::string, unsigned int> maxstep_{{"Link", 108},
