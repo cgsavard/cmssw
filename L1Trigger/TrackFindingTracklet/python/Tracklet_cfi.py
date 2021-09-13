@@ -22,7 +22,8 @@ TTTracksFromTrackletEmulation = cms.EDProducer("L1FPGATrackProducer",
                                                moduleCablingFile  = cms.FileInPath('L1Trigger/TrackFindingTracklet/data/modules_T5v3_27SP_nonant_tracklet.dat'),
                                                # Quality Flag and Quality params
                                                TrackQuality =cms.bool(False),
-                                               TrackQualityPSet = cms.PSet(TrackQualityParams)
+                                               TrackQualityPSet = cms.PSet(TrackQualityParams),
+                                               truncation = cms.untracked.string("All") #Default truncation on, options of: {"IR", "MC", "ME", "MP", "PR", "TC", "TE", "TP", "TRE", "VMR", "All", "None"}
     )
 
 TTTracksFromExtendedTrackletEmulation = TTTracksFromTrackletEmulation.clone(
@@ -36,6 +37,7 @@ TTTracksFromExtendedTrackletEmulation = TTTracksFromTrackletEmulation.clone(
                                                tableTREFile = cms.FileInPath('L1Trigger/TrackFindingTracklet/data/table_TRE/table_TRE_D1AD2A_1.txt'),
                                                # Quality Flag and Quality params
                                                TrackQuality =cms.bool(False),
-                                               TrackQualityPSet = cms.PSet(TrackQualityParams)
+                                               TrackQualityPSet = cms.PSet(TrackQualityParams),
+                                               truncation = cms.untracked.string("All") #Default truncation on, options of: {"IR", "MC", "ME", "MP", "PR", "TC", "TE", "TP", "TRE", "VMR", "All", "None"}
     )
 

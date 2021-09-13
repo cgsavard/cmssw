@@ -95,14 +95,19 @@ namespace trklet {
       return writeMonitorData_.at(module);
     }
 
+    std::string truncationOption() const { return truncationOption_; }
+    void setTruncationOption(std::string truncationOption) { truncationOption_ = truncationOption; }
+
     unsigned int maxStep(std::string module) const {
       if (maxstep_.find(module) == maxstep_.end()) {
         throw cms::Exception("BadConfig")
             << __FILE__ << " " << __LINE__ << " maxStep module = " << module << " not known";
       }
-      if (module=="VMR")
-	return maxstep_.at(module);
-      return maxstep_.at(module) + maxstepoffset_;
+
+      std::cout << "truncationOption: " << truncationOption_ << std::endl;
+      if (truncationOption_=="None") return maxstep_.at(module);
+      else if (truncationOption_==module) return maxstep_.at(module);
+      else return maxstep_.at(module) + maxstepoffset_;
     }
 
     double zlength() const { return zlength_; }
@@ -760,6 +765,8 @@ namespace trklet {
 
     double stripLength_PS_{0.1467};
     double stripLength_2S_{5.0250};
+
+    std::string truncationOption_{"All"}; //Default is truncation to all modules
   };
 
   constexpr unsigned int N_TILTED_RINGS = 12;  // # of tilted rings per half-layer in TBPS layers

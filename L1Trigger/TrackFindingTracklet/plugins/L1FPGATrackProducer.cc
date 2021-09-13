@@ -175,6 +175,8 @@ private:
   edm::ParameterSet trackQualityParams;
   std::unique_ptr<TrackQuality> trackQualityModel;
 
+  string truncationOption_; //one of {"IR", "MC", "ME", "MP", "PR", "TC", "TE", "TP", "TRE", "VMR", "All", "None"}
+
   std::map<string, vector<int>> dtclayerdisk;
 
   edm::ESHandle<TrackerTopology> tTopoHandle;
@@ -246,6 +248,11 @@ L1FPGATrackProducer::L1FPGATrackProducer(edm::ParameterSet const& iConfig)
   if (extended_) {
     tableTEDFile = iConfig.getParameter<edm::FileInPath>("tableTEDFile");
     tableTREFile = iConfig.getParameter<edm::FileInPath>("tableTREFile");
+  }
+
+  truncationOption_ = iConfig.getUntrackedParameter<string>("truncation");
+  if (not truncationOption_.empty()) {
+    settings.setTruncationOption(truncationOption_);
   }
 
   // --------------------------------------------------------------------------------

@@ -5,7 +5,13 @@
 import FWCore.ParameterSet.Config as cms
 import FWCore.Utilities.FileUtils as FileUtils
 import os
+import sys
 process = cms.Process("L1TrackNtuple")
+
+if len(sys.argv) >2:
+    TRUNCATION = sys.argv[2]
+else:
+    TRUNCATION = "All"
 
 ############################################################
 # edit options here
@@ -15,7 +21,7 @@ GEOMETRY = "D49"
 # Set L1 tracking algorithm: 
 # 'HYBRID' (baseline, 4par fit) or 'HYBRID_DISPLACED' (extended, 5par fit). 
 # (Or legacy algos 'TMTT' or 'TRACKLET').
-L1TRKALGO = 'HYBRID'  
+L1TRKALGO = 'HYBRID_DISPLACED'  
 
 WRITE_DATA = False
 
@@ -50,7 +56,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 # input and output
 ############################################################
 
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(100))
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(10))
 
 #--- To use MCsamples scripts, defining functions get*data*(), 
 #--- follow instructions https://cernbox.cern.ch/index.php/s/enCnnfUZ4cpK7mT
@@ -72,14 +78,15 @@ if GEOMETRY == "D49":
   #inputMC=getCMSdata(dataName)
 
   # Or read specified .root file:
-  inputMC = ["/store/relval/CMSSW_11_2_0_pre5/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU25ns_110X_mcRun4_realistic_v3_2026D49PU200-v1/20000/FDFA00CE-FA93-0142-B187-99CBD4A43944.root"] 
+  inputMC = [#"/store/relval/CMSSW_11_2_0_pre5/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU25ns_110X_mcRun4_realistic_v3_2026D49PU200-v1/20000/FDFA00CE-FA93-0142-B187-99CBD4A43944.root"] 
+      "/store/relval/CMSSW_11_2_0_pre6/RelValDisplacedMuPt2To100/GEN-SIM-DIGI-RAW/PU25ns_112X_mcRun4_realistic_v2_2026D49PU200_L1T-v2/20000/007234B4-44EF-6A49-B986-88CAA2E1843C.root"]
 
 else:
   print "this is not a valid geometry!!!"    
     
 process.source = cms.Source("PoolSource", fileNames = cms.untracked.vstring(*inputMC))
 
-process.TFileService = cms.Service("TFileService", fileName = cms.string('TTbar_PU200_'+GEOMETRY+'.root'), closeFileFast = cms.untracked.bool(True))
+process.TFileService = cms.Service("TFileService", fileName = cms.string('DispMu_PU200_'+GEOMETRY+'_extended_testtruncroot'), closeFileFast = cms.untracked.bool(True))
 process.Timing = cms.Service("Timing", summaryOnly = cms.untracked.bool(True))
 
 
@@ -111,6 +118,7 @@ if (L1TRKALGO == 'HYBRID'):
     L1TRK_NAME  = "TTTracksFromTrackletEmulation"
     L1TRK_LABEL = "Level1TTTracks"
     L1TRUTH_NAME = "TTTrackAssociatorFromPixelDigis"
+    process.TTTracksFromTrackletEmulation.truncation = cms.untracked.string(TRUNCATION)
 
 # HYBRID: extended tracking
 elif (L1TRKALGO == 'HYBRID_DISPLACED'):
@@ -120,7 +128,8 @@ elif (L1TRKALGO == 'HYBRID_DISPLACED'):
     L1TRK_NAME  = "TTTracksFromExtendedTrackletEmulation"
     L1TRK_LABEL = "Level1TTTracks"
     L1TRUTH_NAME = "TTTrackAssociatorFromPixelDigisExtended"
-    
+    process.TTTracksFromExtendedTrackletEmulation.truncation = cms.untracked.string(TRUNCATION)
+
 # LEGACY ALGORITHM (EXPERTS ONLY): TRACKLET  
 elif (L1TRKALGO == 'TRACKLET'):
     print "\n WARNING: This is not the baseline algorithm! Prefer HYBRID or HYBRID_DISPLACED!"
@@ -187,6 +196,8 @@ process.L1TrackNtuple = cms.EDAnalyzer('L1TrackNtupleMaker',
                                        TrackingInJets = cms.bool(False),
                                        GenJetInputTag = cms.InputTag("ak4GenJets", "")
                                        )
+
+#process.TTTracksFromExtendedTrackletEmulation.truncation = cms.untracked.string(TRUNCATION)
 
 process.ana = cms.Path(process.L1TrackNtuple)
 
