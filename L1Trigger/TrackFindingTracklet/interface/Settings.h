@@ -104,10 +104,12 @@ namespace trklet {
             << __FILE__ << " " << __LINE__ << " maxStep module = " << module << " not known";
       }
 
-      std::cout << "truncationOption: " << truncationOption_ << std::endl;
-      if (truncationOption_=="None") return maxstep_.at(module);
-      else if (truncationOption_==module) return maxstep_.at(module);
-      else return maxstep_.at(module) + maxstepoffset_;
+      if (truncationOption_=="All"){
+	return maxstep_.at(module);}
+      else if (truncationOption_==module){
+	return maxstep_.at(module);}
+      else {
+	return maxstep_.at(module) + maxstepoffset_;}
     }
 
     double zlength() const { return zlength_; }
