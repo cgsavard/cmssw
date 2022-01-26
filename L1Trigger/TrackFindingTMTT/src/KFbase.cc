@@ -618,6 +618,11 @@ namespace tmtt {
 
         deltaS = (1. / 6.) * (stub->r()) * pow(corr, 2);
         correction[1] -= deltaS * tanL;
+      
+	if (nHelixPar_ == 5) { //IAN D0 FIX
+	  float d0 = vecX[D0];
+	  correction[0] += (1. / 6.) * pow(d0/stub->r(), 3); // Division by r hard in FPGA?
+	}
       }
 
       if ((not stub->barrel()) && not(stub->psModule())) {
