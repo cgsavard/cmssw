@@ -634,8 +634,13 @@ namespace tmtt {
 
         if (settings_->kalmanHOprojZcorr() == 1) {
           // Add correlation term related to conversion of stub residuals from (r,phi) to (z,phi).
-          correction[0] += inv2R * rShift;
-        }
+          correction[0] += inv2R * rShift;// - (1. / 6.) * pow(inv2R * rShift, 3);
+        
+	  if (nHelixPar_ == 5) { //CLAIRE FIX
+	    float d0 = vecX[D0];
+	    correction[0] += (-1.)* d0 * tanL / stub->z(); //- inv2R*rShift*pow(d0*tanL/stub->z(),2);//- pow(d0 * tanL / stub->z(),3) - inv2R*rShift*pow(d0*tanL/stub->z(), 2);//  + (1. / 6.) * pow(d0*tanL/stub->z(), 3);
+	  }
+	}
 
         if (settings_->kalmanHOalpha() == 1) {
           // Add alpha correction for non-radial 2S endcap strips..
