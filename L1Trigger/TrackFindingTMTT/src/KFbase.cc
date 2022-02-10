@@ -634,18 +634,27 @@ namespace tmtt {
 
         if (settings_->kalmanHOprojZcorr() == 1) {
           // Add correlation term related to conversion of stub residuals from (r,phi) to (z,phi).
-          correction[0] += inv2R * rShift;// - (1. / 6.) * pow(inv2R * rShift, 3);
-        
+          correction[0] += inv2R * rShift;
+
 	  if (nHelixPar_ == 5) { //CLAIRE FIX
 	    float d0 = vecX[D0];
-	    correction[0] += (-1.)* d0 * tanL / stub->z(); //- inv2R*rShift*pow(d0*tanL/stub->z(),2);//- pow(d0 * tanL / stub->z(),3) - inv2R*rShift*pow(d0*tanL/stub->z(), 2);//  + (1. / 6.) * pow(d0*tanL/stub->z(), 3);
+	    // cancel out barrel d0 corrections (found in dphi/dd0 in KFParamsComb and L624 above)
+	    correction[0] -= (1. / 6.) * pow(d0/stub->r(), 3) + d0/stub->r();
+	    
+	    // additional correction terms
+	    //correction[0] += d0 * tanL / stub->z();
+	    //correction[0] += d0 * tanL / stub->z() + (1. / 6.) * pow(d0 * tanL / stub->z(),3);
+	    //correction[0] += d0 * tanL / stub->z() - (rShift+stub->r())*inv2R * pow(d0 * tanL / stub->z(),2);
+	    //correction[0] += d0 * tanL / stub->z() + (1. / 6.) * pow(d0 * tanL / stub->z(),3) - (rShift+stub->r())*inv2R * pow(d0 * tanL / stub->z(),2);
+	    //float rStar = (stub->z() - z0) / tanL;
+	    //float eps = pow(d0*tanL/stub->z(),2) + (1./6.)*pow(rStar*inv2R,2);
+	    //correction[0] += (-1.)*rStar*inv2R*eps + d0*tanL/stub->z()*(1.+z0/stub->z())*(1.-d0*inv2R)*(1.+eps) + (1./6.)*pow(rStar*inv2R+d0*tanL/stub->z(),3); //all corrections possible (sign mistakes?)
 	  }
 	}
-
         if (settings_->kalmanHOalpha() == 1) {
           // Add alpha correction for non-radial 2S endcap strips..
           correction[0] += stub->alpha() * rShift;
-        }
+	}
       }
 
       // Apply correction to residuals.
