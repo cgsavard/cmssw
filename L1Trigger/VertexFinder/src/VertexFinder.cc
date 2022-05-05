@@ -645,11 +645,26 @@ namespace l1tVertexFinder {
     for (const L1Track& track : fitTracks_) {
       if ((track.z0() < settings_->vx_histogram_min()) || (track.z0() > settings_->vx_histogram_max()))
         continue;
-      if (track.getTTTrackPtr()->chi2() > settings_->vx_TrackMaxChi2())
-        continue;
+      //if (track.getTTTrackPtr()->chi2() > settings_->vx_TrackMaxChi2())
+      //continue;
       if (track.pt() < settings_->vx_TrackMinPt())
         continue;
+      if ((int)track.getTTTrackPtr()->getStubRefs().size() < 4) //CS ADD
+	continue;
+      if (track.eta() > 2.4 || track.eta() < -2.4) //CS ADD
+	continue;
 
+      /*
+      //TQ MVA CUT
+      if (track.getTTTrackPtr()->trkMVA1() < 0.8)
+	continue;
+      
+      //CHI2 CUTS
+      if (track.getTTTrackPtr()->chi2Z() > 5 || track.getTTTrackPtr()->chi2XY() > 20 ||
+	  track.getTTTrackPtr()->stubPtConsistency() > 2.25)
+	continue;
+      */
+      /*
       // Get the number of stubs and the number of stubs in PS layers
       float nPS = 0., nstubs = 0;
 
@@ -696,6 +711,7 @@ namespace l1tVertexFinder {
         if (track.pt() > 10.0 && chi2dof > 5.0)
           continue;
       }
+      */
 
       // Assign the track to the correct vertex
       // The values are ordered with bounds [lower, upper)
