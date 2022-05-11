@@ -35,7 +35,8 @@ VertexProducer = cms.EDProducer('VertexProducer',
         # TDR settings: [-14.95, 15.0, 0.1]
         # L1TkPrimaryVertexProducer: [-30.0, 30.0, 0.09983361065]
         # Firmware: [-14.4, 14.4, 0.4]
-        FH_HistogramParameters = cms.vdouble(-30.0, 30.0, 0.09983361065),
+        #FH_HistogramParameters = cms.vdouble(-30.0, 30.0, 0.09983361065),
+        FH_HistogramParameters = cms.vdouble(-15, 15, 0.1171875),  
         # The number of vertixes to return (i.e. N windows with the highest combined pT)
         FH_NVtx = cms.uint32(10),
         # fastHisto algorithm assumed vertex half-width [cm]

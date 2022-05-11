@@ -34,11 +34,11 @@ process.MessageLogger.cerr.INFO.limit = cms.untracked.int32(0) # default: 0
 # input and output
 ############################################################
 
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(3))
 
 readFiles = cms.untracked.vstring(
-#    '/store/relval/CMSSW_11_3_0_pre3/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_113X_mcRun4_realistic_v3_2026D49PU200_rsb-v1/00000/00260a30-734a-4a3a-a4b0-f836ce5502c6.root'
-'/store/mc/Phase2HLTTDRWinter20DIGI/TT_TuneCP5_14TeV-powheg-pythia8/GEN-SIM-DIGI-RAW/PU200_110X_mcRun4_realistic_v3-v2/110000/005E74D6-B50E-674E-89E6-EAA9A617B476.root'
+    '/store/relval/CMSSW_11_3_0_pre3/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_113X_mcRun4_realistic_v3_2026D49PU200_rsb-v1/00000/00260a30-734a-4a3a-a4b0-f836ce5502c6.root'
+#'/store/mc/Phase2HLTTDRWinter20DIGI/TT_TuneCP5_14TeV-powheg-pythia8/GEN-SIM-DIGI-RAW/PU200_110X_mcRun4_realistic_v3-v2/110000/005E74D6-B50E-674E-89E6-EAA9A617B476.root'
 )
 secFiles = cms.untracked.vstring()
 
@@ -58,23 +58,31 @@ process.TFileService = cms.Service("TFileService", fileName = cms.string('vtx_tt
 process.load('L1Trigger.VertexFinder.VertexProducer_cff')
 process.load("L1Trigger.L1TTrackMatch.L1GTTInputProducer_cfi")
 process.load("L1Trigger.TrackFindingTracklet.L1HybridEmulationTracks_cff")
-
-
+process.load("L1Trigger.L1TTrackMatch.L1TrackSelectionProducer_cfi")
+process.load("SimTracker.TrackTriggerAssociation.TrackTriggerAssociator_cff")
 
 ############################################################
 # Primary vertex
 ############################################################
 process.L1VertexFinder = process.VertexProducer.clone()
+process.L1VertexFinder.l1TracksInputTag = cms.InputTag("L1TrackSelectionProducer","Level1TTTracksSelected")
 process.pPV = cms.Path(process.L1VertexFinder)
 process.L1VertexFinderEmulator = process.VertexProducer.clone()
 process.L1VertexFinderEmulator.VertexReconstruction.Algorithm = "fastHistoEmulation"
-process.L1VertexFinderEmulator.l1TracksInputTag = cms.InputTag("L1GTTInputProducer","Level1TTTracksConverted")
+#process.L1VertexFinderEmulator.l1TracksInputTag = cms.InputTag("L1GTTInputProducer","Level1TTTracksConverted")
+process.L1VertexFinderEmulator.l1TracksInputTag = cms.InputTag("L1TrackSelectionProducer","Level1TTTracksSelectedEmulation")
 process.pPVemu = cms.Path(process.L1VertexFinderEmulator)
 
-process.TTTracksEmu = cms.Path(process.L1HybridTracks)
-process.TTTracksEmuWithTruth = cms.Path(process.L1HybridTracksWithAssociators)
-process.pL1GTTInput = cms.Path(process.L1GTTInputProducer)
+process.pL1TrackSelection = cms.Path(process.L1TrackSelectionProducer)
+process.L1TrackSelectionProducer.__delattr__("l1VerticesInputTag")
+process.L1TrackSelectionProducer.__delattr__("l1VerticesEmulationInputTag")
 
+# Association Map for track from GTTInputProducer
+process.L1GTTInputTrackAssociatorFromPixelDigis = process.TTTrackAssociatorFromPixelDigis.clone()
+process.L1GTTInputTrackAssociatorFromPixelDigis.TTTracks = cms.VInputTag( cms.InputTag("L1GTTInputProducer","Level1TTTracksConverted") )
+#process.pL1GTTInput = cms.Path(process.L1GTTInputProducer*process.L1GTTInputTrackAssociatorFromPixelDigis)
+
+process.pL1GTTInput = cms.Path(process.L1GTTInputProducer) #original, run this if we don't want to run MC truth (change track selection config)
 
 ############################################################
 # Define the track ntuple process, MyProcess is the (unsigned) PDGID corresponding to the process which is run
@@ -90,6 +98,7 @@ process.L1TrackNtuple = cms.EDAnalyzer('L1VertexNtupleMaker',
         MyProcess = cms.int32(1),
         DebugMode = cms.bool(False),      # printout lots of debug statements
         GenParticleInputTag = cms.InputTag("genParticles",""),
+        GenVertexInputTag = cms.InputTag("generatorSmeared","","SIM"),
         RecoVertexInputTag=cms.InputTag("L1VertexFinder", "l1vertices"),
         RecoVertexEmuInputTag=cms.InputTag("L1VertexFinderEmulator", "l1verticesEmulation"),
 )
@@ -103,6 +112,5 @@ process.out = cms.OutputModule( "PoolOutputModule",
 process.pOut = cms.EndPath(process.out)
 
 
-process.schedule = cms.Schedule(process.TTTracksEmuWithTruth, process.pL1GTTInput, process.pPV, process.pPVemu)
-#process.schedule = cms.Schedule(process.pPV, process.pPVemu, process.ntuple)
-#process.schedule = cms.Schedule(process.pPV, process.ntuple)
+process.schedule = cms.Schedule(process.pL1GTTInput, process.pL1TrackSelection, process.pPV, process.pPVemu,process.ntuple)
+

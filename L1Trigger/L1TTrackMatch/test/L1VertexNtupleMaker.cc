@@ -134,8 +134,10 @@ private:
   edm::InputTag RecoVertexInputTag;
   edm::InputTag RecoVertexEmuInputTag;
   edm::InputTag GenParticleInputTag;
+  edm::InputTag GenVertexInputTag;
 
   edm::EDGetTokenT<std::vector<reco::GenParticle>> GenParticleToken_;
+  edm::EDGetTokenT<HepMCProduct> GenVertexToken_;
   edm::EDGetTokenT<l1t::VertexCollection> L1VertexToken_;
   edm::EDGetTokenT<l1t::VertexWordCollection> L1VertexEmuToken_;
 
@@ -148,7 +150,8 @@ private:
   std::vector<float>* m_pv_L1reco;
   std::vector<float>* m_pv_L1reco_sum;
   std::vector<float>* m_pv_L1reco_emu;
-  std::vector<float>* m_pv_MC;
+  std::vector<float>* m_pv_MC_genpart;
+  std::vector<float>* m_pv_MC_genvtx;
   std::vector<int>* m_MC_lep;
 };
 
@@ -167,8 +170,10 @@ L1VertexNtupleMaker::L1VertexNtupleMaker(edm::ParameterSet const& iConfig) : con
   RecoVertexInputTag = iConfig.getParameter<InputTag>("RecoVertexInputTag");
   RecoVertexEmuInputTag = iConfig.getParameter<InputTag>("RecoVertexEmuInputTag");
   GenParticleInputTag = iConfig.getParameter<InputTag>("GenParticleInputTag");
+  GenVertexInputTag   = iConfig.getParameter<InputTag >("GenVertexInputTag");
 
   GenParticleToken_ = consumes<std::vector<reco::GenParticle>>(GenParticleInputTag);
+  GenVertexToken_ = consumes<HepMCProduct>(GenVertexInputTag);
   L1VertexToken_ = consumes<l1t::VertexCollection>(RecoVertexInputTag);
   L1VertexEmuToken_ = consumes<l1t::VertexWordCollection>(RecoVertexEmuInputTag);
 
@@ -203,7 +208,8 @@ void L1VertexNtupleMaker::beginJob() {
   m_pv_L1reco = new std::vector<float>;
   m_pv_L1reco_sum = new std::vector<float>;
   m_pv_L1reco_emu = new std::vector<float>;
-  m_pv_MC = new std::vector<float>;
+  m_pv_MC_genpart = new std::vector<float>;
+  m_pv_MC_genvtx = new std::vector<float>;
   m_MC_lep = new std::vector<int>;
 
   // ntuple
@@ -212,7 +218,8 @@ void L1VertexNtupleMaker::beginJob() {
   eventTree->Branch("pv_L1reco_sum", &m_pv_L1reco_sum);
   eventTree->Branch("pv_L1reco_emu", &m_pv_L1reco_emu);
   eventTree->Branch("MC_lep", &m_MC_lep);
-  eventTree->Branch("pv_MC", &m_pv_MC);
+  eventTree->Branch("pv_MC_genpart", &m_pv_MC_genpart);
+  eventTree->Branch("pv_MC_genvtx", &m_pv_MC_genvtx);
 }
 
 //////////
@@ -231,7 +238,8 @@ void L1VertexNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetu
   m_pv_L1reco->clear();
   m_pv_L1reco_sum->clear();
   m_pv_L1reco_emu->clear();
-  m_pv_MC->clear();
+  m_pv_MC_genpart->clear();
+  m_pv_MC_genvtx->clear();
   m_MC_lep->clear();
 
   // -----------------------------------------------------------------------------------------------
@@ -241,6 +249,10 @@ void L1VertexNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetu
   //Gen particles
   edm::Handle<std::vector<reco::GenParticle> > GenParticleHandle;
   iEvent.getByToken(GenParticleToken_, GenParticleHandle);
+
+  //Gen vertex
+  edm::Handle<HepMCProduct> GenVertexHandle;
+  iEvent.getByToken(GenVertexToken_, GenVertexHandle);
 
   //Vertex
   edm::Handle<l1t::VertexCollection> L1TkPrimaryVertexHandle;
@@ -263,10 +275,37 @@ void L1VertexNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetu
       zvtx_gen = genpartIter->vz();  //for gen vertex
     }
 
-    m_pv_MC->push_back(zvtx_gen);
+    m_pv_MC_genpart->push_back(zvtx_gen);
   
   } else {
     edm::LogWarning("DataNotFound") << "\nWarning: GenParticleHandle not found in the event" << std::endl;
+  }
+
+  //Gen vertex
+  if (GenVertexHandle.isValid()) {
+    const HepMC::GenEvent* MCEvt = GenVertexHandle->GetEvent();
+    for (HepMC::GenEvent::vertex_const_iterator ivertex =
+	   MCEvt->vertices_begin();
+         ivertex != MCEvt->vertices_end(); ++ivertex) {
+      bool hasParentVertex = false;
+      // Loop over the parents looking to see if they are coming from a
+      // production vertex
+      for (HepMC::GenVertex::particle_iterator iparent =
+	     (*ivertex)->particles_begin(HepMC::parents);
+           iparent != (*ivertex)->particles_end(HepMC::parents); ++iparent)
+        if ((*iparent)->production_vertex()) {
+          hasParentVertex = true;
+          break;
+        }
+
+      // Reject those vertices with parent vertices
+      if (hasParentVertex) continue;
+      // Get the position of the vertex
+      HepMC::FourVector pos = (*ivertex)->position();
+      const double mm = 0.1;  // [mm] --> [cm]
+      m_pv_MC_genvtx->push_back(pos.z() * mm);
+      break;  // there should be one single primary vertex
+    }         // end loop over gen vertices
   }
 
   //Primary reco vertex

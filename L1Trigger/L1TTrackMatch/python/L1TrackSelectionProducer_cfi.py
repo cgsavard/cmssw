@@ -1,7 +1,9 @@
 import FWCore.ParameterSet.Config as cms
 
 L1TrackSelectionProducer = cms.EDProducer('L1TrackSelectionProducer',
-  l1TracksInputTag = cms.InputTag("L1GTTInputProducer","Level1TTTracksConverted"),
+  l1TracksInputTag = cms.InputTag("L1GTTInputProducer", "Level1TTTracksConverted"),
+  # If a TTTrackAssociationMap is provided, then only truth matched tracks will be returned
+  #mcTruthTrackInputTag = cms.InputTag("L1GTTInputTrackAssociatorFromPixelDigis", "Level1TTTracksConverted"),
   # If no vertex collection is provided, then the DeltaZ cuts will not be run
   l1VerticesInputTag = cms.InputTag("L1VertexFinder", "l1vertices"),
   l1VerticesEmulationInputTag = cms.InputTag("L1VertexFinderEmulator", "l1verticesEmulation"),
@@ -13,9 +15,15 @@ L1TrackSelectionProducer = cms.EDProducer('L1TrackSelectionProducer',
                     nStubsMin = cms.int32(4), # number of stubs must be greater than or equal to this value
                     nPSStubsMin = cms.int32(0), # the number of stubs in the PS Modules must be greater than or equal to this value
 
-                    reducedBendChi2Max = cms.double(2.25), # bend chi2 must be less than this value
-                    reducedChi2RZMax = cms.double(5.0), # chi2rz/dof must be less than this value
-                    reducedChi2RPhiMax = cms.double(20.0), # chi2rphi/dof must be less than this value
+      reducedBendChi2Max = cms.double(999.),
+      reducedChi2RZMax = cms.double(999.),
+      reducedChi2RPhiMax = cms.double(999.),
+
+      tqMVAMin = cms.double(0.9999),
+
+                    #reducedBendChi2Max = cms.double(2.25), # bend chi2 must be less than this value
+                    #reducedChi2RZMax = cms.double(5.0), # chi2rz/dof must be less than this value
+                    #reducedChi2RPhiMax = cms.double(20.0), # chi2rphi/dof must be less than this value
 
                     #deltaZMaxEtaBounds = cms.vdouble(0.0, absEtaMax.value), # these values define the bin boundaries in |eta|
                     #deltaZMax = cms.vdouble(0.5), # delta z must be less than these values, there will be one less value here than in deltaZMaxEtaBounds, [cm]
@@ -29,8 +37,36 @@ L1TrackSelectionProducer = cms.EDProducer('L1TrackSelectionProducer',
 )
 
 L1TrackSelectionProducerExtended = L1TrackSelectionProducer.clone(
-  l1TracksInputTag = "L1GTTInputProducerExtended : Level1TTTracksExtendedConverted",
+  l1TracksInputTag = cms.InputTag("L1GTTInputProducerExtended", "Level1TTTracksExtendedConverted"),
+  # mcTruthTrackInputTag = cms.InputTag("L1GTTInputExtendedTrackAssociatorFromPixelDigis", "Level1TTTracksExtendedConverted"),
   outputCollectionName = "Level1TTTracksExtendedSelected",
   useDisplacedTracksDeltaZOverride = 3.0, # Use prompt/displaced tracks
 )
 
+L1TrackSelectionProducerPreVertex = cms.EDProducer('L1TrackSelectionProducer',
+  l1TracksInputTag = cms.InputTag("L1GTTInputProducer","Level1TTTracksConverted"),
+  # If no vertex collection is provided, then the DeltaZ cuts will not be run
+  outputCollectionName = cms.string("Level1TTTracksSelectedPreVertex"),
+  cutSet = cms.PSet(
+                    ptMin = cms.double(2.0), # pt must be greater than this value, [GeV]
+                    absEtaMax = cms.double(2.4), # absolute value of eta must be less than this value
+                    absZ0Max = cms.double(15.0), # z0 must be less than this value, [cm]
+                    nStubsMin = cms.int32(4), # number of stubs must be greater than or equal to this value
+                    nPSStubsMin = cms.int32(0), # the number of stubs in the PS Modules must be greater than or equal to this value
+
+                    reducedBendChi2Max = cms.double(999.), # bend chi2 must be less than this value
+                    reducedChi2RZMax = cms.double(999.), # chi2rz/dof must be less than this value
+                    reducedChi2RPhiMax = cms.double(999.), # chi2rphi/dof must be less than this value
+                    
+                    tqMVAMin = cms.double(0), # trkMVA1 must be greater than this value
+
+                    #deltaZMaxEtaBounds = cms.vdouble(0.0, absEtaMax.value), # these values define the bin boundaries in |eta|
+                    #deltaZMax = cms.vdouble(0.5), # delta z must be less than these values, there will be one less value here than in deltaZMaxEtaBounds, [cm]
+                    deltaZMaxEtaBounds = cms.vdouble(0.0, 0.7, 1.0, 1.2, 1.6, 2.0, 2.4), # these values define the bin boundaries in |eta|
+                    deltaZMax = cms.vdouble(999., 999., 999., 999., 999., 999.), # delta z must be less than these values, there will be one less value here than in deltaZMaxEtaBounds, [cm]
+                    ),
+  useDisplacedTracksDeltaZOverride = cms.double(-1.0), # override the deltaZ cut value for displaced tracks
+  processSimulatedTracks = cms.bool(True), # return selected tracks after cutting on the floating point values
+  processEmulatedTracks = cms.bool(True), # return selected tracks after cutting on the bitwise emulated values
+  debug = cms.int32(0) # Verbosity levels: 0, 1, 2, 3, 4
+)
