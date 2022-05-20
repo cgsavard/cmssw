@@ -185,6 +185,7 @@ private:
   std::vector<float>* m_trk_matchtp_dxy;
   std::vector<float>* m_trk_matchtp_d0;
   std::vector<float>* m_trk_matchtp_z0_prod;
+  std::vector<int>* m_trk_parent_matchtp_pdgid;
   std::vector<int>* m_trk_injet;          //is the track within dR<0.4 of a genjet with pt > 30 GeV?
   std::vector<int>* m_trk_injet_highpt;   //is the track within dR<0.4 of a genjet with pt > 100 GeV?
   std::vector<int>* m_trk_injet_vhighpt;  //is the track within dR<0.4 of a genjet with pt > 200 GeV?
@@ -206,6 +207,7 @@ private:
   std::vector<int>* m_tp_injet;
   std::vector<int>* m_tp_injet_highpt;
   std::vector<int>* m_tp_injet_vhighpt;
+  std::vector<int>* m_parent_tp_pdgid;
 
   // *L1 track* properties if m_tp_nmatch > 0
   std::vector<float>* m_matchtrk_pt;
@@ -364,6 +366,7 @@ void L1TrackNtupleMaker::beginJob() {
   m_trk_matchtp_dxy = new std::vector<float>;
   m_trk_matchtp_d0 = new std::vector<float>;
   m_trk_matchtp_z0_prod = new std::vector<float>;
+  m_trk_parent_matchtp_pdgid = new std::vector<int>;
   m_trk_injet = new std::vector<int>;
   m_trk_injet_highpt = new std::vector<int>;
   m_trk_injet_vhighpt = new std::vector<int>;
@@ -384,6 +387,7 @@ void L1TrackNtupleMaker::beginJob() {
   m_tp_injet = new std::vector<int>;
   m_tp_injet_highpt = new std::vector<int>;
   m_tp_injet_vhighpt = new std::vector<int>;
+  m_parent_tp_pdgid = new std::vector<int>;
 
   m_matchtrk_pt = new std::vector<float>;
   m_matchtrk_eta = new std::vector<float>;
@@ -472,6 +476,7 @@ void L1TrackNtupleMaker::beginJob() {
     eventTree->Branch("trk_matchtp_dxy", &m_trk_matchtp_dxy);
     eventTree->Branch("trk_matchtp_d0", &m_trk_matchtp_d0);
     eventTree->Branch("trk_matchtp_z0_prod", &m_trk_matchtp_z0_prod);
+    eventTree->Branch("trk_parent_matchtp_pdgid", &m_trk_parent_matchtp_pdgid);
     if (TrackingInJets) {
       eventTree->Branch("trk_injet", &m_trk_injet);
       eventTree->Branch("trk_injet_highpt", &m_trk_injet_highpt);
@@ -497,6 +502,7 @@ void L1TrackNtupleMaker::beginJob() {
     eventTree->Branch("tp_injet_highpt", &m_tp_injet_highpt);
     eventTree->Branch("tp_injet_vhighpt", &m_tp_injet_vhighpt);
   }
+  eventTree->Branch("parent_tp_pdgid", &m_parent_tp_pdgid);
 
   eventTree->Branch("matchtrk_pt", &m_matchtrk_pt);
   eventTree->Branch("matchtrk_eta", &m_matchtrk_eta);
@@ -609,6 +615,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_matchtp_dxy->clear();
     m_trk_matchtp_d0->clear();
     m_trk_matchtp_z0->clear();
+    m_trk_parent_matchtp_pdgid->clear();
     m_trk_injet->clear();
     m_trk_injet_highpt->clear();
     m_trk_injet_vhighpt->clear();
@@ -630,6 +637,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
   m_tp_injet->clear();
   m_tp_injet_highpt->clear();
   m_tp_injet_vhighpt->clear();
+  m_parent_tp_pdgid->clear();
 
   m_matchtrk_pt->clear();
   m_matchtrk_eta->clear();
@@ -1072,6 +1080,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float tmp_matchtp_dxy = -999;
       float tmp_matchtp_d0 = -999;
       float tmp_matchtp_z0_prod = -999;
+      int tmp_parent_matchtp_pdgid = -999;
 
       if (my_tp.isNull())
         myFake = 0;
@@ -1094,6 +1103,15 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
         tmp_matchtp_dxy = sqrt(tmp_matchtp_vx * tmp_matchtp_vx + tmp_matchtp_vy * tmp_matchtp_vy);
 
 	tmp_matchtp_z0_prod = tmp_matchtp_vz;
+
+	// ----------------------------------------------------------------------------------------------
+	// get info from parent info
+	
+	TrackingParticleRefVector parent_matchtps = my_tp->parentVertex()->sourceTracks();
+	if (!parent_matchtps.empty()){
+	  TrackingParticleRefVector::iterator parent_matchtp = parent_matchtps.begin(); //get first parent tp (rarely has >1)
+	  tmp_parent_matchtp_pdgid = (*(*parent_matchtp)).pdgId();
+	}
 
         // ----------------------------------------------------------------------------------------------
         // get d0/z0 propagated back to the IP
@@ -1139,6 +1157,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       m_trk_matchtp_dxy->push_back(tmp_matchtp_dxy);
       m_trk_matchtp_d0->push_back(tmp_matchtp_d0);
       m_trk_matchtp_z0_prod->push_back(tmp_matchtp_z0_prod);
+      m_trk_parent_matchtp_pdgid->push_back(tmp_parent_matchtp_pdgid);
 
       // ----------------------------------------------------------------------------------------------
       // for tracking in jets
@@ -1206,6 +1225,16 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     int tmp_tp_pdgid = iterTP->pdgId();
     float tmp_tp_z0_prod = tmp_tp_vz;
     float tmp_tp_d0_prod = tmp_tp_vx * sin(tmp_tp_phi) - tmp_tp_vy * cos(tmp_tp_phi);
+
+    // ---------------------------------------------------------------------------------------------- 
+    // get info from parent info
+    
+    TrackingParticleRefVector parent_tps = iterTP->parentVertex()->sourceTracks();
+    int tmp_parent_tp_pdgid = -999;
+    if (!parent_tps.empty()){
+      TrackingParticleRefVector::iterator parent_tp = parent_tps.begin(); //get first parent tp (rarely has >1)
+      tmp_parent_tp_pdgid = (*(*parent_tp)).pdgId();
+    }
 
     // ----------------------------------------------------------------------------------------------
     // get d0/z0 propagated back to the IP
@@ -1516,6 +1545,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_tp_nstub->push_back(nStubTP);
     m_tp_eventid->push_back(tmp_eventid);
     m_tp_charge->push_back(tmp_tp_charge);
+    m_parent_tp_pdgid->push_back(tmp_parent_tp_pdgid);
 
     m_matchtrk_pt->push_back(tmp_matchtrk_pt);
     m_matchtrk_eta->push_back(tmp_matchtrk_eta);
