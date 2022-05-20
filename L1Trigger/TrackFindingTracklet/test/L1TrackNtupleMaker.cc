@@ -184,6 +184,7 @@ private:
   std::vector<float>* m_trk_matchtp_z0;
   std::vector<float>* m_trk_matchtp_dxy;
   std::vector<float>* m_trk_matchtp_d0;
+  std::vector<float>* m_trk_matchtp_z0_prod;
   std::vector<int>* m_trk_injet;          //is the track within dR<0.4 of a genjet with pt > 30 GeV?
   std::vector<int>* m_trk_injet_highpt;   //is the track within dR<0.4 of a genjet with pt > 100 GeV?
   std::vector<int>* m_trk_injet_vhighpt;  //is the track within dR<0.4 of a genjet with pt > 200 GeV?
@@ -362,6 +363,7 @@ void L1TrackNtupleMaker::beginJob() {
   m_trk_matchtp_z0 = new std::vector<float>;
   m_trk_matchtp_dxy = new std::vector<float>;
   m_trk_matchtp_d0 = new std::vector<float>;
+  m_trk_matchtp_z0_prod = new std::vector<float>;
   m_trk_injet = new std::vector<int>;
   m_trk_injet_highpt = new std::vector<int>;
   m_trk_injet_vhighpt = new std::vector<int>;
@@ -469,6 +471,7 @@ void L1TrackNtupleMaker::beginJob() {
     eventTree->Branch("trk_matchtp_z0", &m_trk_matchtp_z0);
     eventTree->Branch("trk_matchtp_dxy", &m_trk_matchtp_dxy);
     eventTree->Branch("trk_matchtp_d0", &m_trk_matchtp_d0);
+    eventTree->Branch("trk_matchtp_z0_prod", &m_trk_matchtp_z0_prod);
     if (TrackingInJets) {
       eventTree->Branch("trk_injet", &m_trk_injet);
       eventTree->Branch("trk_injet_highpt", &m_trk_injet_highpt);
@@ -605,6 +608,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_matchtp_z0->clear();
     m_trk_matchtp_dxy->clear();
     m_trk_matchtp_d0->clear();
+    m_trk_matchtp_z0->clear();
     m_trk_injet->clear();
     m_trk_injet_highpt->clear();
     m_trk_injet_vhighpt->clear();
@@ -1067,6 +1071,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float tmp_matchtp_z0 = -999;
       float tmp_matchtp_dxy = -999;
       float tmp_matchtp_d0 = -999;
+      float tmp_matchtp_z0_prod = -999;
 
       if (my_tp.isNull())
         myFake = 0;
@@ -1087,6 +1092,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
         float tmp_matchtp_vx = my_tp->vx();
         float tmp_matchtp_vy = my_tp->vy();
         tmp_matchtp_dxy = sqrt(tmp_matchtp_vx * tmp_matchtp_vx + tmp_matchtp_vy * tmp_matchtp_vy);
+
+	tmp_matchtp_z0_prod = tmp_matchtp_vz;
 
         // ----------------------------------------------------------------------------------------------
         // get d0/z0 propagated back to the IP
@@ -1131,6 +1138,7 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       m_trk_matchtp_z0->push_back(tmp_matchtp_z0);
       m_trk_matchtp_dxy->push_back(tmp_matchtp_dxy);
       m_trk_matchtp_d0->push_back(tmp_matchtp_d0);
+      m_trk_matchtp_z0_prod->push_back(tmp_matchtp_z0_prod);
 
       // ----------------------------------------------------------------------------------------------
       // for tracking in jets
