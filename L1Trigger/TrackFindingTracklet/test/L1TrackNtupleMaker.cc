@@ -39,7 +39,7 @@
 #include "DataFormats/JetReco/interface/GenJet.h"
 
 ////////////////////////////
-// DETECTOR GEOMETRY HEADERS
+// GEOMETRY HEADERS
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
@@ -186,6 +186,8 @@ private:
   std::vector<float>* m_trk_matchtp_d0;
   std::vector<float>* m_trk_matchtp_z0_prod;
   std::vector<int>* m_trk_parent_matchtp_pdgid;
+  std::vector<float>* m_trk_parent_matchtp_m;
+  std::vector<float>* m_trk_parent_matchtp_m_calc;
   std::vector<int>* m_trk_injet;          //is the track within dR<0.4 of a genjet with pt > 30 GeV?
   std::vector<int>* m_trk_injet_highpt;   //is the track within dR<0.4 of a genjet with pt > 100 GeV?
   std::vector<int>* m_trk_injet_vhighpt;  //is the track within dR<0.4 of a genjet with pt > 200 GeV?
@@ -208,6 +210,8 @@ private:
   std::vector<int>* m_tp_injet_highpt;
   std::vector<int>* m_tp_injet_vhighpt;
   std::vector<int>* m_parent_tp_pdgid;
+  std::vector<float>* m_parent_tp_m;
+  std::vector<float>* m_parent_tp_m_calc;
 
   // *L1 track* properties if m_tp_nmatch > 0
   std::vector<float>* m_matchtrk_pt;
@@ -367,6 +371,8 @@ void L1TrackNtupleMaker::beginJob() {
   m_trk_matchtp_d0 = new std::vector<float>;
   m_trk_matchtp_z0_prod = new std::vector<float>;
   m_trk_parent_matchtp_pdgid = new std::vector<int>;
+  m_trk_parent_matchtp_m = new std::vector<float>;
+  m_trk_parent_matchtp_m_calc = new std::vector<float>;
   m_trk_injet = new std::vector<int>;
   m_trk_injet_highpt = new std::vector<int>;
   m_trk_injet_vhighpt = new std::vector<int>;
@@ -388,6 +394,8 @@ void L1TrackNtupleMaker::beginJob() {
   m_tp_injet_highpt = new std::vector<int>;
   m_tp_injet_vhighpt = new std::vector<int>;
   m_parent_tp_pdgid = new std::vector<int>;
+  m_parent_tp_m = new std::vector<float>;
+  m_parent_tp_m_calc = new std::vector<float>;
 
   m_matchtrk_pt = new std::vector<float>;
   m_matchtrk_eta = new std::vector<float>;
@@ -477,6 +485,8 @@ void L1TrackNtupleMaker::beginJob() {
     eventTree->Branch("trk_matchtp_d0", &m_trk_matchtp_d0);
     eventTree->Branch("trk_matchtp_z0_prod", &m_trk_matchtp_z0_prod);
     eventTree->Branch("trk_parent_matchtp_pdgid", &m_trk_parent_matchtp_pdgid);
+    eventTree->Branch("trk_parent_matchtp_m", &m_trk_parent_matchtp_m);
+    eventTree->Branch("trk_parent_matchtp_m_calc", &m_trk_parent_matchtp_m_calc);
     if (TrackingInJets) {
       eventTree->Branch("trk_injet", &m_trk_injet);
       eventTree->Branch("trk_injet_highpt", &m_trk_injet_highpt);
@@ -503,6 +513,8 @@ void L1TrackNtupleMaker::beginJob() {
     eventTree->Branch("tp_injet_vhighpt", &m_tp_injet_vhighpt);
   }
   eventTree->Branch("parent_tp_pdgid", &m_parent_tp_pdgid);
+  eventTree->Branch("parent_tp_m", &m_parent_tp_m);
+  eventTree->Branch("parent_tp_m_calc", &m_parent_tp_m_calc);
 
   eventTree->Branch("matchtrk_pt", &m_matchtrk_pt);
   eventTree->Branch("matchtrk_eta", &m_matchtrk_eta);
@@ -616,6 +628,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_trk_matchtp_d0->clear();
     m_trk_matchtp_z0->clear();
     m_trk_parent_matchtp_pdgid->clear();
+    m_trk_parent_matchtp_m->clear();
+    m_trk_parent_matchtp_m_calc->clear();
     m_trk_injet->clear();
     m_trk_injet_highpt->clear();
     m_trk_injet_vhighpt->clear();
@@ -638,6 +652,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
   m_tp_injet_highpt->clear();
   m_tp_injet_vhighpt->clear();
   m_parent_tp_pdgid->clear();
+  m_parent_tp_m->clear();
+  m_parent_tp_m_calc->clear();
 
   m_matchtrk_pt->clear();
   m_matchtrk_eta->clear();
@@ -1081,6 +1097,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       float tmp_matchtp_d0 = -999;
       float tmp_matchtp_z0_prod = -999;
       int tmp_parent_matchtp_pdgid = -999;
+      float tmp_parent_matchtp_m = -999;
+      float tmp_parent_matchtp_m_calc = -999;
 
       if (my_tp.isNull())
         myFake = 0;
@@ -1111,8 +1129,17 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
 	if (!parent_matchtps.empty()){
 	  TrackingParticleRefVector::iterator parent_matchtp = parent_matchtps.begin(); //get first parent tp (rarely has >1)
 	  tmp_parent_matchtp_pdgid = (*(*parent_matchtp)).pdgId();
+	  tmp_parent_matchtp_m = (*(*parent_matchtp)).mass();
 	}
-
+	
+	TrackingParticleRefVector daughter_matchtps = my_tp->parentVertex()->daughterTracks();
+	math::XYZTLorentzVector parent_p4;
+	if (!daughter_matchtps.empty()){
+	  for (TrackingParticleRefVector::iterator daughterTP = daughter_matchtps.begin(); daughterTP != daughter_matchtps.end(); ++daughterTP)
+	    parent_p4 += (*(*daughterTP)).p4();
+	  tmp_parent_matchtp_m_calc = parent_p4.M();
+	}
+	
         // ----------------------------------------------------------------------------------------------
         // get d0/z0 propagated back to the IP
 
@@ -1158,6 +1185,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
       m_trk_matchtp_d0->push_back(tmp_matchtp_d0);
       m_trk_matchtp_z0_prod->push_back(tmp_matchtp_z0_prod);
       m_trk_parent_matchtp_pdgid->push_back(tmp_parent_matchtp_pdgid);
+      m_trk_parent_matchtp_m->push_back(tmp_parent_matchtp_m);
+      m_trk_parent_matchtp_m_calc->push_back(tmp_parent_matchtp_m_calc);
 
       // ----------------------------------------------------------------------------------------------
       // for tracking in jets
@@ -1231,9 +1260,20 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     
     TrackingParticleRefVector parent_tps = iterTP->parentVertex()->sourceTracks();
     int tmp_parent_tp_pdgid = -999;
+    float tmp_parent_tp_m = -999;
     if (!parent_tps.empty()){
       TrackingParticleRefVector::iterator parent_tp = parent_tps.begin(); //get first parent tp (rarely has >1)
       tmp_parent_tp_pdgid = (*(*parent_tp)).pdgId();
+      tmp_parent_tp_m = (*(*parent_tp)).mass();
+    }
+
+    TrackingParticleRefVector daughter_tps = iterTP->parentVertex()->daughterTracks();
+    math::XYZTLorentzVector parent_p4;
+    float tmp_parent_tp_m_calc = -999;
+    if (!daughter_tps.empty()){
+      for (TrackingParticleRefVector::iterator daughterTP = daughter_tps.begin(); daughterTP != daughter_tps.end(); ++daughterTP)
+	parent_p4 += (*(*daughterTP)).p4();
+      tmp_parent_tp_m_calc = parent_p4.M();
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -1546,6 +1586,8 @@ void L1TrackNtupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup
     m_tp_eventid->push_back(tmp_eventid);
     m_tp_charge->push_back(tmp_tp_charge);
     m_parent_tp_pdgid->push_back(tmp_parent_tp_pdgid);
+    m_parent_tp_m->push_back(tmp_parent_tp_m);
+    m_parent_tp_m_calc->push_back(tmp_parent_tp_m_calc);
 
     m_matchtrk_pt->push_back(tmp_matchtrk_pt);
     m_matchtrk_eta->push_back(tmp_matchtrk_eta);
