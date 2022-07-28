@@ -24,10 +24,13 @@ C.Brown 28/07/20
 #include "PhysicsTools/ONNXRuntime/interface/ONNXRuntime.h"
 #include <memory>
 
+#include "conifer.h" 
+#include "ap_fixed.h"
+
 class L1TrackQuality {
 public:
   // Enum class used for determining prediction behaviour in setL1TrackQuality
-  enum class QualityAlgorithm { Cut, GBDT, NN, None };
+  enum class QualityAlgorithm { Cut, GBDT, GBDT_cpp, NN, None };
 
   //Default Constructor
   L1TrackQuality();

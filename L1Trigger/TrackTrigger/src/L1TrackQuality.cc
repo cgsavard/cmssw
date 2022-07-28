@@ -28,7 +28,8 @@ L1TrackQuality::L1TrackQuality(const edm::ParameterSet& qualityParams) : setupHP
                  qualityParams.getParameter<edm::FileInPath>("ONNXmodel"),
                  qualityParams.getParameter<std::string>("ONNXInputName"),
                  qualityParams.getParameter<std::vector<std::string>>("featureNames"));
-    runTime_ = std::make_unique<cms::Ort::ONNXRuntime>(this->ONNXmodel_.fullPath());
+    if ((AlgorithmString == "GBDT") || (AlgorithmString == "NN"))
+      runTime_ = std::make_unique<cms::Ort::ONNXRuntime>(this->ONNXmodel_.fullPath());
   }
 }
 
@@ -125,7 +126,17 @@ void L1TrackQuality::setL1TrackQuality(TTTrack<Ref_Phase2TrackerDigi_>& aTrack) 
     aTrack.settrkMVA1(classification);
   }
 
-  if ((this->qualityAlgorithm_ == QualityAlgorithm::NN) || (this->qualityAlgorithm_ == QualityAlgorithm::GBDT)) {
+  else if (this->qualityAlgorithm_ == QualityAlgorithm::GBDT_cpp) {
+    // load in bdt
+    conifer::BDT<float,float> bdt(this->ONNXmodel_.fullPath());
+
+    // collect features and classify using bdt
+    std::vector<float> inputs = featureTransform(aTrack, this->featureNames_);
+    std::vector<float> output = bdt.decision_function(inputs);
+    aTrack.settrkMVA1(1./(1.+exp(-output.at(0)))); // need logistic sigmoid fcn applied to xgb output
+  }
+
+  else if ((this->qualityAlgorithm_ == QualityAlgorithm::NN) || (this->qualityAlgorithm_ == QualityAlgorithm::GBDT)) {
     // Setup ONNX input and output names and arrays
     std::vector<std::string> ortinput_names;
     std::vector<std::string> ortoutput_names;
@@ -189,6 +200,8 @@ void L1TrackQuality::setONNXModel(std::string const& AlgorithmString,
     qualityAlgorithm_ = QualityAlgorithm::NN;
   } else if (AlgorithmString == "GBDT") {
     qualityAlgorithm_ = QualityAlgorithm::GBDT;
+  } else if (AlgorithmString == "GBDT_cpp" ) {
+    qualityAlgorithm_ = QualityAlgorithm::GBDT_cpp;
   } else {
     qualityAlgorithm_ = QualityAlgorithm::None;
   }
