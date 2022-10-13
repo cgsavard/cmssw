@@ -267,6 +267,7 @@ private:
   std::vector<float>* m_trk_matchtp_phi;
   std::vector<float>* m_trk_matchtp_z0;
   std::vector<float>* m_trk_matchtp_dxy;
+  std::vector<int>* m_trk_matchtp_phikk_tag;
   std::vector<float>* m_trk_gtt_pt;
   std::vector<float>* m_trk_gtt_eta;
   std::vector<float>* m_trk_gtt_phi;
@@ -323,6 +324,7 @@ private:
   std::vector<int>* m_tp_nstub;
   std::vector<int>* m_tp_eventid;
   std::vector<int>* m_tp_charge;
+  std::vector<int>* m_tp_phikk_tag;
 
   // *L1 track* properties if m_tp_nmatch > 0 (prompt)
   std::vector<float>* m_matchtrk_pt;
@@ -616,6 +618,7 @@ void L1TrackObjectNtupleMaker::beginJob() {
   m_trk_matchtp_phi = new std::vector<float>;
   m_trk_matchtp_z0 = new std::vector<float>;
   m_trk_matchtp_dxy = new std::vector<float>;
+  m_trk_matchtp_phikk_tag = new::vector<int>;
   m_trk_gtt_pt = new std::vector<float>;
   m_trk_gtt_eta = new std::vector<float>;
   m_trk_gtt_phi = new std::vector<float>;
@@ -670,6 +673,7 @@ void L1TrackObjectNtupleMaker::beginJob() {
   m_tp_nstub = new std::vector<int>;
   m_tp_eventid = new std::vector<int>;
   m_tp_charge = new std::vector<int>;
+  m_tp_phikk_tag = new std::vector<int>;
 
   m_gen_pt = new std::vector<float>;
   m_gen_phi = new std::vector<float>;
@@ -818,6 +822,7 @@ void L1TrackObjectNtupleMaker::beginJob() {
     eventTree->Branch("trk_matchtp_phi", &m_trk_matchtp_phi);
     eventTree->Branch("trk_matchtp_z0", &m_trk_matchtp_z0);
     eventTree->Branch("trk_matchtp_dxy", &m_trk_matchtp_dxy);
+    eventTree->Branch("trk_matchtp_phikk_tag", &m_trk_matchtp_phikk_tag);
     eventTree->Branch("trk_gtt_pt", &m_trk_gtt_pt);
     eventTree->Branch("trk_gtt_eta", &m_trk_gtt_eta);
     eventTree->Branch("trk_gtt_phi", &m_trk_gtt_phi);
@@ -874,6 +879,7 @@ void L1TrackObjectNtupleMaker::beginJob() {
   eventTree->Branch("tp_nstub", &m_tp_nstub);
   eventTree->Branch("tp_eventid", &m_tp_eventid);
   eventTree->Branch("tp_charge", &m_tp_charge);
+  eventTree->Branch("tp_phikk_tag", &m_tp_phikk_tag);
 
   if (Displaced == "Prompt" || Displaced == "Both") {
     eventTree->Branch("matchtrk_pt", &m_matchtrk_pt);
@@ -1063,6 +1069,7 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
     m_trk_matchtp_phi->clear();
     m_trk_matchtp_z0->clear();
     m_trk_matchtp_dxy->clear();
+    m_trk_matchtp_phikk_tag->clear();
     m_trk_gtt_pt->clear();
     m_trk_gtt_eta->clear();
     m_trk_gtt_phi->clear();
@@ -1118,6 +1125,7 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
   m_tp_nstub->clear();
   m_tp_eventid->clear();
   m_tp_charge->clear();
+  m_tp_phikk_tag->clear();
 
   m_gen_pt->clear();
   m_gen_phi->clear();
@@ -1617,6 +1625,7 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
       float myTP_phi = -999;
       float myTP_z0 = -999;
       float myTP_dxy = -999;
+      int myTP_phikk_tag = -999;
 
       if (my_tp.isNull())
         myFake = 0;
@@ -1626,6 +1635,16 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
           myFake = 2;
         else
           myFake = 1;
+
+	// get phi to kk tag, fill with 0 if not k from phi and -1 or 1 if from -/+ phi
+	TrackingParticleRefVector parent_matchtps = my_tp->parentVertex()->sourceTracks();
+	if (!parent_matchtps.empty()){
+	  TrackingParticleRefVector::iterator parent_matchtp = parent_matchtps.begin(); //get first parent tp (rarely has >1)
+	  int tmp_parent_matchtp_pdgid = (*(*parent_matchtp)).pdgId();
+	  if (my_tp->pdgId()==321 && abs(tmp_parent_matchtp_pdgid)==333) myTP_phikk_tag = 1;
+	  else if (my_tp->pdgId()==-321 && abs(tmp_parent_matchtp_pdgid)==333) myTP_phikk_tag = -1;
+	  else myTP_phikk_tag = 0;
+	}
 
         myTP_pdgid = my_tp->pdgId();
         myTP_pt = my_tp->p4().pt();
@@ -1652,6 +1671,7 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
       m_trk_matchtp_phi->push_back(myTP_phi);
       m_trk_matchtp_z0->push_back(myTP_z0);
       m_trk_matchtp_dxy->push_back(myTP_dxy);
+      m_trk_matchtp_phikk_tag->push_back(myTP_phikk_tag);
 
       // ----------------------------------------------------------------------------------------------
       // store the index to the selected track or -1 if not selected
@@ -1900,6 +1920,17 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
     if (std::abs(tmp_tp_eta) > TP_maxEta)
       continue;
 
+    // get phi to kk tag, fill with 0 if not k from phi and -1 or 1 if from -/+ phi
+    int tmp_tp_phikk_tag = -999;
+    TrackingParticleRefVector parent_matchtps = iterTP->parentVertex()->sourceTracks();
+    if (!parent_matchtps.empty()){
+      TrackingParticleRefVector::iterator parent_matchtp = parent_matchtps.begin(); //get first parent tp (rarely has >1)              
+      int tmp_parent_matchtp_pdgid = (*(*parent_matchtp)).pdgId();
+      if (iterTP->pdgId()==321 && abs(tmp_parent_matchtp_pdgid)==333) tmp_tp_phikk_tag = 1;
+      else if (iterTP->pdgId()==-321 && abs(tmp_parent_matchtp_pdgid)==333) tmp_tp_phikk_tag = -1;
+      else tmp_tp_phikk_tag = 0;
+    }
+
     // ----------------------------------------------------------------------------------------------
     // get d0/z0 propagated back to the IP
     float tmp_tp_t = tan(2.0 * atan(1.0) - 2.0 * atan(exp(-tmp_tp_eta)));
@@ -2024,6 +2055,7 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
     m_tp_nstub->push_back(nStubTP);
     m_tp_eventid->push_back(tmp_eventid);
     m_tp_charge->push_back(tmp_tp_charge);
+    m_tp_phikk_tag->push_back(tmp_tp_phikk_tag);
 
     // ----------------------------------------------------------------------------------------------
     // look for L1 tracks (prompt) matched to the tracking particle
