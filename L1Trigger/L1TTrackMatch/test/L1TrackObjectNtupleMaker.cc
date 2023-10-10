@@ -182,7 +182,9 @@ private:
   edm::InputTag RecoVertexEmuInputTag;
   edm::InputTag GenParticleInputTag;
 
+  edm::InputTag TPFastJetsInputTag;
   edm::InputTag TrackFastJetsInputTag;
+  edm::InputTag TruthTrackFastJetsInputTag;
   edm::InputTag TrackJetsInputTag;
   edm::InputTag TrackJetsEmuInputTag;
   edm::InputTag TrackMETInputTag;
@@ -241,7 +243,9 @@ private:
   edm::EDGetTokenT<l1t::VertexCollection> L1VertexToken_;
   edm::EDGetTokenT<l1t::VertexWordCollection> L1VertexEmuToken_;
 
+  edm::EDGetTokenT<std::vector<l1t::TkJet>> TPFastJetsToken_;
   edm::EDGetTokenT<std::vector<l1t::TkJet>> TrackFastJetsToken_;
+  edm::EDGetTokenT<std::vector<l1t::TkJet>> TruthTrackFastJetsToken_;
   edm::EDGetTokenT<std::vector<l1t::TkJet>> TrackFastJetsExtendedToken_;
   edm::EDGetTokenT<std::vector<l1t::TkEtMiss>> TrackMETToken_;
   edm::EDGetTokenT<std::vector<l1t::TkEtMiss>> TrackMETExtendedToken_;
@@ -472,6 +476,13 @@ private:
   std::vector<float>* m_trkfastjet_tp_sumpt;
   std::vector<float>* m_trkfastjet_truetp_sumpt;
 
+  std::vector<float>* m_trutrkfastjet_vz;
+  std::vector<float>* m_trutrkfastjet_p;
+  std::vector<float>* m_trutrkfastjet_phi;
+  std::vector<float>* m_trutrkfastjet_eta;
+  std::vector<float>* m_trutrkfastjet_pt;
+  std::vector<int>* m_trutrkfastjet_ntracks;
+
   std::vector<float>* m_trkfastjetExt_vz;
   std::vector<float>* m_trkfastjetExt_p;
   std::vector<float>* m_trkfastjetExt_phi;
@@ -481,6 +492,14 @@ private:
   std::vector<float>* m_trkfastjetExt_tp_sumpt;
   std::vector<float>* m_trkfastjetExt_truetp_sumpt;
 
+  std::vector<float>* m_tpfastjet_vz;
+  std::vector<float>* m_tpfastjet_p;
+  std::vector<float>* m_tpfastjet_pt;
+  std::vector<float>* m_tpfastjet_eta;
+  std::vector<float>* m_tpfastjet_phi;
+  std::vector<int>* m_tpfastjet_mult;
+
+  //track jets
   std::vector<float>* m_trkjet_vz;
   std::vector<float>* m_trkjet_p;
   std::vector<float>* m_trkjet_phi;
@@ -516,6 +535,16 @@ private:
   std::vector<float>* m_trkjetemExt_z;
   std::vector<int>* m_trkjetemExt_ntracks;
   std::vector<int>* m_trkjetemExt_nxtracks;
+
+  //gen jets
+  std::vector<float>* m_genjet_vz;
+  std::vector<float>* m_genjet_p;
+  std::vector<float>* m_genjet_phi;
+  std::vector<float>* m_genjet_eta;
+  std::vector<float>* m_genjet_pt;
+  std::vector<float>* m_genjet_efrac_ch;
+  std::vector<float>* m_genjet_efrac_nu;
+  std::vector<int>* m_genjet_mult;
 };
 
 //////////////////////////////////
@@ -575,7 +604,9 @@ L1TrackObjectNtupleMaker::L1TrackObjectNtupleMaker(edm::ParameterSet const& iCon
         iConfig.getParameter<edm::InputTag>("L1TrackSelectedAssociatedForEtMissInputTag");
     L1TrackSelectedAssociatedEmulationForEtMissInputTag =
         iConfig.getParameter<edm::InputTag>("L1TrackSelectedAssociatedEmulationForEtMissInputTag");
+    TPFastJetsInputTag = iConfig.getParameter<InputTag>("TPFastJetsInputTag");
     TrackFastJetsInputTag = iConfig.getParameter<InputTag>("TrackFastJetsInputTag");
+    TruthTrackFastJetsInputTag = iConfig.getParameter<InputTag>("TruthTrackFastJetsInputTag");
     TrackJetsInputTag = iConfig.getParameter<InputTag>("TrackJetsInputTag");
     TrackJetsEmuInputTag = iConfig.getParameter<InputTag>("TrackJetsEmuInputTag");
     TrackMETInputTag = iConfig.getParameter<InputTag>("TrackMETInputTag");
@@ -602,7 +633,9 @@ L1TrackObjectNtupleMaker::L1TrackObjectNtupleMaker(edm::ParameterSet const& iCon
         consumes<L1TrackRefCollection>(L1TrackSelectedAssociatedForEtMissInputTag);
     ttTrackSelectedAssociatedEmulationForEtMissToken_ =
         consumes<L1TrackRefCollection>(L1TrackSelectedAssociatedEmulationForEtMissInputTag);
+    TPFastJetsToken_ = consumes<std::vector<l1t::TkJet>>(TPFastJetsInputTag);
     TrackFastJetsToken_ = consumes<std::vector<l1t::TkJet>>(TrackFastJetsInputTag);
+    TruthTrackFastJetsToken_ = consumes<std::vector<l1t::TkJet>>(TruthTrackFastJetsInputTag);
     TrackJetsToken_ = consumes<l1t::TkJetCollection>(TrackJetsInputTag);
     TrackJetsEmuToken_ = consumes<l1t::TkJetWordCollection>(TrackJetsEmuInputTag);
     TrackMETToken_ = consumes<std::vector<l1t::TkEtMiss>>(TrackMETInputTag);
@@ -887,6 +920,13 @@ void L1TrackObjectNtupleMaker::endJob() {
   delete m_trkjetem_ntracks;
   delete m_trkjetem_nxtracks;
 
+  delete m_tpfastjet_p;
+  delete m_tpfastjet_eta;
+  delete m_tpfastjet_phi;
+  delete m_tpfastjet_pt;
+  delete m_tpfastjet_vz;
+  delete m_tpfastjet_mult;
+
   delete m_trkfastjet_eta;
   delete m_trkfastjet_vz;
   delete m_trkfastjet_phi;
@@ -895,6 +935,13 @@ void L1TrackObjectNtupleMaker::endJob() {
   delete m_trkfastjet_ntracks;
   delete m_trkfastjet_tp_sumpt;
   delete m_trkfastjet_truetp_sumpt;
+
+  delete m_trutrkfastjet_eta;
+  delete m_trutrkfastjet_vz;
+  delete m_trutrkfastjet_phi;
+  delete m_trutrkfastjet_p;
+  delete m_trutrkfastjet_pt;
+  delete m_trutrkfastjet_ntracks;
 
   delete m_trkjetExt_eta;
   delete m_trkjetExt_vz;
@@ -922,6 +969,15 @@ void L1TrackObjectNtupleMaker::endJob() {
   delete m_trkfastjetExt_ntracks;
   delete m_trkfastjetExt_tp_sumpt;
   delete m_trkfastjetExt_truetp_sumpt;
+
+  delete m_genjet_vz;
+  delete m_genjet_eta;
+  delete m_genjet_phi;
+  delete m_genjet_p;
+  delete m_genjet_pt;
+  delete m_genjet_efrac_ch;
+  delete m_genjet_efrac_nu;
+  delete m_genjet_mult;
 }
 
 ////////////
@@ -1122,6 +1178,13 @@ void L1TrackObjectNtupleMaker::beginJob() {
   m_trkjetem_ntracks = new std::vector<int>;
   m_trkjetem_nxtracks = new std::vector<int>;
 
+  m_tpfastjet_pt = new std::vector<float>;
+  m_tpfastjet_phi = new std::vector<float>;
+  m_tpfastjet_eta = new std::vector<float>;
+  m_tpfastjet_p = new std::vector<float>;
+  m_tpfastjet_vz = new std::vector<float>;
+  m_tpfastjet_mult = new std::vector<int>;
+
   m_trkfastjet_eta = new std::vector<float>;
   m_trkfastjet_vz = new std::vector<float>;
   m_trkfastjet_phi = new std::vector<float>;
@@ -1130,6 +1193,13 @@ void L1TrackObjectNtupleMaker::beginJob() {
   m_trkfastjet_ntracks = new std::vector<int>;
   m_trkfastjet_tp_sumpt = new std::vector<float>;
   m_trkfastjet_truetp_sumpt = new std::vector<float>;
+
+  m_trutrkfastjet_eta = new std::vector<float>;
+  m_trutrkfastjet_vz = new std::vector<float>;
+  m_trutrkfastjet_phi = new std::vector<float>;
+  m_trutrkfastjet_p = new std::vector<float>;
+  m_trutrkfastjet_pt = new std::vector<float>;
+  m_trutrkfastjet_ntracks = new std::vector<int>;
 
   m_trkjetExt_eta = new std::vector<float>;
   m_trkjetExt_vz = new std::vector<float>;
@@ -1157,6 +1227,16 @@ void L1TrackObjectNtupleMaker::beginJob() {
   m_trkfastjetExt_ntracks = new std::vector<int>;
   m_trkfastjetExt_tp_sumpt = new std::vector<float>;
   m_trkfastjetExt_truetp_sumpt = new std::vector<float>;
+
+  m_genjet_vz = new std::vector<float>;
+  m_genjet_eta = new std::vector<float>;
+  m_genjet_phi = new std::vector<float>;
+  m_genjet_eta = new std::vector<float>;
+  m_genjet_p = new std::vector<float>;
+  m_genjet_pt = new std::vector<float>;
+  m_genjet_efrac_ch = new std::vector<float>;
+  m_genjet_efrac_nu = new std::vector<float>;
+  m_genjet_mult = new std::vector<int>;
 
   // ntuple
   eventTree = fs->make<TTree>("eventTree", "Event tree");
@@ -1340,6 +1420,13 @@ void L1TrackObjectNtupleMaker::beginJob() {
 
   if (SaveTrackJets) {
     if (Displaced == "Prompt" || Displaced == "Both") {
+      eventTree->Branch("tpfastjet_eta", &m_tpfastjet_eta);
+      eventTree->Branch("tpfastjet_vz", &m_tpfastjet_vz);
+      eventTree->Branch("tpfastjet_p", &m_tpfastjet_p);
+      eventTree->Branch("tpfastjet_pt", &m_tpfastjet_pt);
+      eventTree->Branch("tpfastjet_phi", &m_tpfastjet_phi);
+      eventTree->Branch("tpfastjet_mult", &m_tpfastjet_mult);
+
       eventTree->Branch("trkfastjet_eta", &m_trkfastjet_eta);
       eventTree->Branch("trkfastjet_vz", &m_trkfastjet_vz);
       eventTree->Branch("trkfastjet_p", &m_trkfastjet_p);
@@ -1347,6 +1434,13 @@ void L1TrackObjectNtupleMaker::beginJob() {
       eventTree->Branch("trkfastjet_phi", &m_trkfastjet_phi);
       eventTree->Branch("trkfastjet_ntracks", &m_trkfastjet_ntracks);
       eventTree->Branch("trkfastjet_truetp_sumpt", m_trkfastjet_truetp_sumpt);
+
+      eventTree->Branch("trutrkfastjet_eta", &m_trutrkfastjet_eta);
+      eventTree->Branch("trutrkfastjet_vz", &m_trutrkfastjet_vz);
+      eventTree->Branch("trutrkfastjet_p", &m_trutrkfastjet_p);
+      eventTree->Branch("trutrkfastjet_pt", &m_trutrkfastjet_pt);
+      eventTree->Branch("trutrkfastjet_phi", &m_trutrkfastjet_phi);
+      eventTree->Branch("trutrkfastjet_ntracks", &m_trutrkfastjet_ntracks);
 
       eventTree->Branch("trkjet_eta", &m_trkjet_eta);
       eventTree->Branch("trkjet_vz", &m_trkjet_vz);
@@ -1391,6 +1485,14 @@ void L1TrackObjectNtupleMaker::beginJob() {
       eventTree->Branch("trkjetemExt_ntracks", &m_trkjetemExt_ntracks);
       eventTree->Branch("trkjetemExt_nxtracks", &m_trkjetemExt_nxtracks);
     }
+    eventTree->Branch("genjet_vz", &m_genjet_vz);
+    eventTree->Branch("genjet_phi", &m_genjet_phi);
+    eventTree->Branch("genjet_eta", &m_genjet_eta);
+    eventTree->Branch("genjet_p", &m_genjet_p);
+    eventTree->Branch("genjet_pt", &m_genjet_pt);
+    eventTree->Branch("genjet_efrac_ch", &m_genjet_efrac_ch);
+    eventTree->Branch("genjet_efrac_nu", &m_genjet_efrac_nu);
+    eventTree->Branch("genjet_mult", &m_genjet_mult);
   }
 
   if (SaveTrackSums) {
@@ -1612,6 +1714,12 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
       m_trkjet_nTight->clear();
       m_trkjet_nTightDisplaced->clear();
       m_trkjet_ntdtrk->clear();
+      m_tpfastjet_eta->clear();
+      m_tpfastjet_pt->clear();
+      m_tpfastjet_vz->clear();
+      m_tpfastjet_phi->clear();
+      m_tpfastjet_p->clear();
+      m_tpfastjet_mult->clear();
       m_trkfastjet_eta->clear();
       m_trkfastjet_pt->clear();
       m_trkfastjet_vz->clear();
@@ -1620,6 +1728,12 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
       m_trkfastjet_ntracks->clear();
       m_trkfastjet_truetp_sumpt->clear();
       m_trkfastjet_tp_sumpt->clear();
+      m_trutrkfastjet_eta->clear();
+      m_trutrkfastjet_pt->clear();
+      m_trutrkfastjet_vz->clear();
+      m_trutrkfastjet_phi->clear();
+      m_trutrkfastjet_p->clear();
+      m_trutrkfastjet_ntracks->clear();
       m_trkjetem_eta->clear();
       m_trkjetem_pt->clear();
       m_trkjetem_phi->clear();
@@ -1653,6 +1767,15 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
       m_trkjetemExt_ntracks->clear();
       m_trkjetemExt_nxtracks->clear();
     }
+
+    m_genjet_vz->clear();
+    m_genjet_phi->clear();
+    m_genjet_eta->clear();
+    m_genjet_p->clear();
+    m_genjet_pt->clear();
+    m_genjet_efrac_ch->clear();
+    m_genjet_efrac_nu->clear();
+    m_genjet_mult->clear();
 
     m_pv_L1reco->clear();
     m_pv_L1reco_sum->clear();
@@ -1692,6 +1815,10 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
   edm::Handle<std::vector<reco::GenParticle>> GenParticleHandle;
   iEvent.getByToken(GenParticleToken_, GenParticleHandle);
 
+  //Gen Jets
+  edm::Handle<std::vector<reco::GenJet>> GenJetHandle;
+  iEvent.getByToken(GenJetToken_, GenJetHandle);
+
   //Vertex
   edm::Handle<l1t::VertexCollection> L1PrimaryVertexHandle;
   iEvent.getByToken(L1VertexToken_, L1PrimaryVertexHandle);
@@ -1702,7 +1829,9 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
   std::vector<l1t::VertexWord>::const_iterator vtxEmuIter;
 
   // Track jets
+  edm::Handle<std::vector<l1t::TkJet>> TPFastJetsHandle;
   edm::Handle<std::vector<l1t::TkJet>> TrackFastJetsHandle;
+  edm::Handle<std::vector<l1t::TkJet>> TruthTrackFastJetsHandle;
   edm::Handle<std::vector<l1t::TkJet>> TrackFastJetsExtendedHandle;
   edm::Handle<l1t::TkJetCollection> TrackJetsHandle;
   edm::Handle<l1t::TkJetCollection> TrackJetsExtendedHandle;
@@ -1754,7 +1883,9 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
   L1TrackCollection::const_iterator iterL1Track;
 
   if (Displaced == "Prompt" || Displaced == "Both") {
+    iEvent.getByToken(TPFastJetsToken_, TPFastJetsHandle);
     iEvent.getByToken(TrackFastJetsToken_, TrackFastJetsHandle);
+    iEvent.getByToken(TruthTrackFastJetsToken_, TruthTrackFastJetsHandle);
     iEvent.getByToken(TrackJetsToken_, TrackJetsHandle);
     iEvent.getByToken(TrackJetsEmuToken_, TrackJetsEmuHandle);
     iEvent.getByToken(TrackMETToken_, L1TkMETHandle);
@@ -2942,6 +3073,16 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
   }
 
   if (SaveTrackJets) {
+    if (TPFastJetsHandle.isValid() && (Displaced == "Prompt" || Displaced == "Both")) {
+      for (jetIter = TPFastJetsHandle->begin(); jetIter != TPFastJetsHandle->end(); ++jetIter) {
+	m_tpfastjet_vz->push_back(jetIter->jetVtx());
+	m_tpfastjet_phi->push_back(jetIter->phi());
+	m_tpfastjet_eta->push_back(jetIter->eta());
+	m_tpfastjet_pt->push_back(jetIter->pt());
+	m_tpfastjet_p->push_back(jetIter->p());
+	m_tpfastjet_mult->push_back(jetIter->ntracks());
+      }
+    }
     if (TrackFastJetsHandle.isValid() && (Displaced == "Prompt" || Displaced == "Both")) {
       for (jetIter = TrackFastJetsHandle->begin(); jetIter != TrackFastJetsHandle->end(); ++jetIter) {
         m_trkfastjet_vz->push_back(jetIter->jetVtx());
@@ -2950,6 +3091,16 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
         m_trkfastjet_eta->push_back(jetIter->eta());
         m_trkfastjet_pt->push_back(jetIter->pt());
         m_trkfastjet_p->push_back(jetIter->p());
+      }
+    }
+    if (TruthTrackFastJetsHandle.isValid() && (Displaced == "Prompt" || Displaced == "Both")) {
+      for (jetIter = TruthTrackFastJetsHandle->begin(); jetIter != TruthTrackFastJetsHandle->end(); ++jetIter) {
+	m_trutrkfastjet_vz->push_back(jetIter->jetVtx());
+	m_trutrkfastjet_ntracks->push_back(jetIter->trkPtrs().size());
+	m_trutrkfastjet_phi->push_back(jetIter->phi());
+	m_trutrkfastjet_eta->push_back(jetIter->eta());
+	m_trutrkfastjet_pt->push_back(jetIter->pt());
+	m_trutrkfastjet_p->push_back(jetIter->p());
       }
     }
     if (TrackFastJetsExtendedHandle.isValid() && (Displaced == "Displaced" || Displaced == "Both")) {
@@ -2990,6 +3141,20 @@ void L1TrackObjectNtupleMaker::analyze(const edm::Event& iEvent, const edm::Even
         m_trkjetExt_nDisplaced->push_back(jetIter->nDisptracks());
         m_trkjetExt_nTight->push_back(jetIter->nTighttracks());
         m_trkjetExt_nTightDisplaced->push_back(jetIter->nTightDisptracks());
+      }
+    }
+    if (GenJetHandle.isValid() && (Displaced == "Prompt" || Displaced == "Both")) {
+      vector<reco::GenJet>::const_iterator genjetIter;
+      for (genjetIter = GenJetHandle->begin(); genjetIter != GenJetHandle->end(); ++genjetIter) {
+	m_genjet_vz->push_back(genjetIter->vz());
+	m_genjet_eta->push_back(genjetIter->eta());
+	m_genjet_phi->push_back(genjetIter->phi());
+	m_genjet_p->push_back(genjetIter->p());
+	m_genjet_pt->push_back(genjetIter->pt());
+	m_genjet_efrac_ch->push_back((genjetIter->chargedHadronEnergy()+genjetIter->chargedEmEnergy()+genjetIter->muonEnergy())/genjetIter->energy());
+	m_genjet_efrac_nu->push_back((genjetIter->neutralHadronEnergy()+genjetIter->neutralEmEnergy())/genjetIter->energy());
+	m_genjet_mult->push_back(genjetIter->chargedHadronMultiplicity()+genjetIter->neutralHadronMultiplicity()+genjetIter->chargedEmMultiplicity()+
+				 genjetIter->neutralEmMultiplicity()+genjetIter->muonMultiplicity());
       }
     }
 
