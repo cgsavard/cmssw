@@ -1,19 +1,24 @@
 import FWCore.ParameterSet.Config as cms
+from . import jetcuts
 
 #prompt jet selection
 l1tTrackJets = cms.EDProducer('L1TrackJetProducer',
         L1TrackInputTag = cms.InputTag("l1tTrackVertexAssociationProducerForJets", "Level1TTTracksSelectedAssociated"),
         L1PVertexInputTag = cms.InputTag("l1tVertexFinderEmulator", "L1VerticesEmulation"),
-        MaxDzTrackPV = cms.double( 1.0 ), #max distance from PV;negative=no cut
+        MaxDzTrackPV = cms.double(jetcuts.dz_trkjet), #max distance from PV;negative=no cut
 	trk_zMax = cms.double (15.) ,    # maximum track z
 	trk_ptMax = cms.double(200.),    # maximumum track pT before saturation [GeV]
 	trk_ptMin = cms.double(2.0),     # minimum track pt [GeV]
    	trk_etaMax = cms.double(2.4),    # maximum track eta
-	nStubs4PromptChi2=cms.double(10.0), #Prompt track quality flags for loose/tight
-        nStubs4PromptBend=cms.double(2.2),
-        nStubs5PromptChi2=cms.double(10.0),
-        nStubs5PromptBend=cms.double(2.2),
-	trk_nPSStubMin=cms.int32(-1),    # minimum PS stubs, -1 means no cut
+        trk_mvaMin = cms.double(jetcuts.mva),
+        tightBarrel = cms.bool(jetcuts.tight_barrel),
+        trk_barrelMvaMin = cms.double(jetcuts.barrel_mva),
+        barrelMaxDzTrackPV = cms.double(jetcuts.barrel_dz),
+        nStubs4PromptChi2=cms.double(jetcuts.chi2dof), #Prompt track quality flags for loose/tight
+        nStubs4PromptBend=cms.double(jetcuts.bendchi2),
+        nStubs5PromptChi2=cms.double(jetcuts.chi2dof),
+        nStubs5PromptBend=cms.double(jetcuts.bendchi2),
+        trk_nPSStubMin=cms.int32(-1),    # minimum PS stubs, -1 means no cut
 	minTrkJetpT=cms.double(-1.),     # min track jet pt to be considered for most energetic zbin finding 
 	etaBins=cms.int32(24),
 	phiBins=cms.int32(27),

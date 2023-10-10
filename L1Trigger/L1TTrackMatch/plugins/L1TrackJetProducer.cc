@@ -62,6 +62,8 @@ private:
   const float trkPtMax_;
   const float trkPtMin_;
   const float trkEtaMax_;
+  const float trkMvaMin_;
+  const float trkBarrelMvaMin_;
   const float nStubs4PromptChi2_;
   const float nStubs5PromptChi2_;
   const float nStubs4PromptBend_;
@@ -87,6 +89,8 @@ private:
   const float nStubs5DisplacedBend_;
   const int nDisplacedTracks_;
   const float dzPVTrk_;
+  const float barreldzPVTrk_;
+  const bool tightBarrel_;
 
   edm::ESGetToken<TrackerTopology, TrackerTopologyRcd> tTopoToken_;
   const EDGetTokenT<L1TTTrackRefCollectionType> trackToken_;
@@ -98,6 +102,8 @@ L1TrackJetProducer::L1TrackJetProducer(const ParameterSet &iConfig)
       trkPtMax_(iConfig.getParameter<double>("trk_ptMax")),
       trkPtMin_(iConfig.getParameter<double>("trk_ptMin")),
       trkEtaMax_(iConfig.getParameter<double>("trk_etaMax")),
+      trkMvaMin_(iConfig.getParameter<double>("trk_mvaMin")),
+      trkBarrelMvaMin_(iConfig.getParameter<double>("trk_barrelMvaMin")),
       nStubs4PromptChi2_(iConfig.getParameter<double>("nStubs4PromptChi2")),
       nStubs5PromptChi2_(iConfig.getParameter<double>("nStubs5PromptChi2")),
       nStubs4PromptBend_(iConfig.getParameter<double>("nStubs4PromptBend")),
@@ -120,9 +126,11 @@ L1TrackJetProducer::L1TrackJetProducer(const ParameterSet &iConfig)
       nStubs5DisplacedBend_(iConfig.getParameter<double>("nStubs5DisplacedBend")),
       nDisplacedTracks_(iConfig.getParameter<int>("nDisplacedTracks")),
       dzPVTrk_(iConfig.getParameter<double>("MaxDzTrackPV")),
+      barreldzPVTrk_(iConfig.getParameter<double>("barrelMaxDzTrackPV")),
+      tightBarrel_(iConfig.getParameter<bool>("tightBarrel")),
       tTopoToken_(esConsumes<TrackerTopology, TrackerTopologyRcd>(edm::ESInputTag("", ""))),
       trackToken_(consumes<L1TTTrackRefCollectionType>(iConfig.getParameter<InputTag>("L1TrackInputTag"))),
-      PVtxToken_(consumes<l1t::VertexWordCollection>(iConfig.getParameter<InputTag>("L1PVertexInputTag"))) {
+      PVtxToken_(consumes<l1t::VertexWordCollection>(iConfig.getParameter<InputTag>("L1PVertexInputTag"))){
   zStep_ = 2.0 * trkZMax_ / (zBins_ + 1);  // added +1 in denom
   etaStep_ = 2.0 * trkEtaMax_ / etaBins_;  //etaStep is the width of an etabin
   phiStep_ = 2 * M_PI / phiBins_;          ////phiStep is the width of a phibin
@@ -153,10 +161,12 @@ void L1TrackJetProducer::produce(Event &iEvent, const EventSetup &iSetup) {
   for (unsigned int this_l1track = 0; this_l1track < TTTrackHandle->size(); this_l1track++) {
     edm::Ptr<L1TTTrackType> trkPtr(TTTrackHandle, this_l1track);
     float trk_pt = trkPtr->momentum().perp();
+    float trk_eta = trkPtr->momentum().eta();
     int trk_nstubs = (int)trkPtr->getStubRefs().size();
     float trk_chi2dof = trkPtr->chi2Red();
     float trk_d0 = trkPtr->d0();
     float trk_bendchi2 = trkPtr->stubPtConsistency();
+    float trk_mva = trkPtr->trkMVA1();
 
     int trk_nPS = 0;
     for (int istub = 0; istub < trk_nstubs; istub++) {  // loop over the stubs
@@ -190,6 +200,10 @@ void L1TrackJetProducer::produce(Event &iEvent, const EventSetup &iSetup) {
     if (std::abs(trkPtr->momentum().eta()) > trkEtaMax_)
       continue;
     if (trk_pt < trkPtMin_)
+      continue;
+    if (trk_mva < trkMvaMin_)
+      continue;
+    if (tightBarrel_ && std::abs(trk_eta) < 1.8 && (trk_mva < trkBarrelMvaMin_ || std::abs(PVz - trkPtr->z0()) > barreldzPVTrk_))
       continue;
     L1TrkPtrs_.push_back(trkPtr);
 
@@ -360,10 +374,14 @@ void L1TrackJetProducer::fillDescriptions(ConfigurationDescriptions &description
   desc.add<edm::InputTag>("L1TrackInputTag", edm::InputTag("l1tTTTracksFromTrackletEmulation", "Level1TTTracks"));
   desc.add<edm::InputTag>("L1PVertexInputTag", edm::InputTag("l1tVertexFinderEmulator", "L1VerticesEmulation"));
   desc.add<double>("MaxDzTrackPV", 1.0);
+  desc.add<double>("barrelMaxDzTrackPV", -1.);
   desc.add<double>("trk_zMax", 15.0);
   desc.add<double>("trk_ptMax", 200.0);
   desc.add<double>("trk_ptMin", 3.0);
   desc.add<double>("trk_etaMax", 2.4);
+  desc.add<double>("trk_mvaMin", -1.0);
+  desc.add<double>("trk_barrelMvaMin", -1.0);
+  desc.add<bool>("tightBarrel", false);
   desc.add<double>("nStubs4PromptChi2", 5.0);
   desc.add<double>("nStubs4PromptBend", 1.7);
   desc.add<double>("nStubs5PromptChi2", 2.75);

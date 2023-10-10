@@ -66,6 +66,10 @@ private:
   // track selection criteria
   const float trkZMax_;          // in [cm]
   const float trkChi2dofMax_;    // maximum track chi2dof
+  const double trkChi2rzMax_;
+  const double trkChi2rphiMax_;
+  const double trkMvaMin_;
+  const float trkBarrelMvaMin_;
   const double trkBendChi2Max_;  // maximum track bendchi2
   const float trkPtMin_;         // in [GeV]
   const float trkEtaMax_;        // in [rad]
@@ -73,9 +77,14 @@ private:
   const int trkNPSStubMin_;      // minimum number of PS stubs
   const double deltaZ0Cut_;      // save with |L1z-z0| < maxZ0
   const double coneSize_;        // Use anti-kt with this cone size
+  const bool doTightDz_;
+  const float trkPtTightDz_;
+  const float trkDzTightDz_;
   const bool doTightChi2_;
   const float trkPtTightChi2_;
   const float trkChi2dofTightChi2_;
+  const float barreldzPVTrk_;
+  const bool tightBarrel_;
   const bool displaced_;  //use prompt/displaced tracks
 
   const edm::EDGetTokenT<std::vector<TTTrack<Ref_Phase2TrackerDigi_> > > trackToken_;
@@ -87,6 +96,10 @@ private:
 L1TrackFastJetProducer::L1TrackFastJetProducer(const edm::ParameterSet& iConfig)
     : trkZMax_((float)iConfig.getParameter<double>("trk_zMax")),
       trkChi2dofMax_((float)iConfig.getParameter<double>("trk_chi2dofMax")),
+      trkChi2rzMax_((float)iConfig.getParameter<double>("trk_chi2rzMax")),
+      trkChi2rphiMax_((float)iConfig.getParameter<double>("trk_chi2rphiMax")),
+      trkMvaMin_((float)iConfig.getParameter<double>("trk_mvaMin")),
+      trkBarrelMvaMin_(iConfig.getParameter<double>("trk_barrelMvaMin")),
       trkBendChi2Max_(iConfig.getParameter<double>("trk_bendChi2Max")),
       trkPtMin_((float)iConfig.getParameter<double>("trk_ptMin")),
       trkEtaMax_((float)iConfig.getParameter<double>("trk_etaMax")),
@@ -94,9 +107,14 @@ L1TrackFastJetProducer::L1TrackFastJetProducer(const edm::ParameterSet& iConfig)
       trkNPSStubMin_((int)iConfig.getParameter<int>("trk_nPSStubMin")),
       deltaZ0Cut_((float)iConfig.getParameter<double>("deltaZ0Cut")),
       coneSize_((float)iConfig.getParameter<double>("coneSize")),
+      doTightDz_(iConfig.getParameter<bool>("doTightDz")),
+      trkPtTightDz_((float)iConfig.getParameter<double>("trk_ptTightDz")),
+      trkDzTightDz_((float)iConfig.getParameter<double>("trk_dzTightDz")),
       doTightChi2_(iConfig.getParameter<bool>("doTightChi2")),
       trkPtTightChi2_((float)iConfig.getParameter<double>("trk_ptTightChi2")),
       trkChi2dofTightChi2_((float)iConfig.getParameter<double>("trk_chi2dofTightChi2")),
+      barreldzPVTrk_(iConfig.getParameter<double>("barrelMaxDzTrackPV")),
+      tightBarrel_(iConfig.getParameter<bool>("tightBarrel")),
       displaced_(iConfig.getParameter<bool>("displaced")),
       trackToken_(consumes<std::vector<TTTrack<Ref_Phase2TrackerDigi_> > >(
           iConfig.getParameter<edm::InputTag>("L1TrackInputTag"))),
@@ -134,8 +152,12 @@ void L1TrackFastJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
   for (iterL1Track = TTTrackHandle->begin(); iterL1Track != TTTrackHandle->end(); iterL1Track++) {
     this_l1track++;
     float trk_pt = iterL1Track->momentum().perp();
+    float trk_eta = iterL1Track->momentum().eta();
     float trk_z0 = iterL1Track->z0();
     float trk_chi2dof = iterL1Track->chi2Red();
+    float trk_chi2rz = iterL1Track->chi2ZRed();
+    float trk_chi2rphi = iterL1Track->chi2XYRed();
+    float trk_mva = iterL1Track->trkMVA1();
     float trk_bendchi2 = iterL1Track->stubPtConsistency();
     std::vector<edm::Ref<edmNew::DetSetVector<TTStub<Ref_Phase2TrackerDigi_> >, TTStub<Ref_Phase2TrackerDigi_> > >
         theStubs = iterL1Track->getStubRefs();
@@ -152,6 +174,12 @@ void L1TrackFastJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
     if (trk_chi2dof > trkChi2dofMax_)
       continue;
     if (trk_bendchi2 > trkBendChi2Max_)
+      continue;
+    if (trk_chi2rphi > trkChi2rphiMax_)
+      continue;
+    if (trk_chi2rz > trkChi2rzMax_)
+      continue;
+    if (trk_mva < trkMvaMin_)
       continue;
     if (doTightChi2_ && (trk_pt > trkPtTightChi2_ && trk_chi2dof > trkChi2dofTightChi2_))
       continue;
@@ -172,6 +200,10 @@ void L1TrackFastJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
     if (trk_nPS < trkNPSStubMin_)
       continue;
     if (std::abs(recoVtx - trk_z0) > deltaZ0Cut_)
+      continue;
+    if (tightBarrel_ && std::abs(trk_eta) < 1.8 && (trk_mva < trkBarrelMvaMin_ || std::abs(recoVtx - trk_z0) > barreldzPVTrk_))
+      continue;
+    if (doTightDz_ && (trk_pt < trkPtTightDz_ && std::abs(recoVtx - trk_z0) > trkDzTightDz_))
       continue;
 
     fastjet::PseudoJet psuedoJet(iterL1Track->momentum().x(),
