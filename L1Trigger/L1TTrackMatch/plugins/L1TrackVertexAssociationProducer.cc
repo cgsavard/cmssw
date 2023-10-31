@@ -165,7 +165,7 @@ private:
     }
     bool operator()(const TTTrackType& t) {
       //use same method as in L1Trigger/DemonstratorTools/src/codecs_tracks.cc method getTrackWords(...)
-      unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
+      unsigned int etaSector = (t.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
       unsigned int gttLinkID = etaSector + (2 * t.phiSector());
       //increment the counter of processed tracks
       processedTracksPerLink_.at(gttLinkID)++;
