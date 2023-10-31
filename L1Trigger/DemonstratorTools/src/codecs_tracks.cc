@@ -24,7 +24,9 @@ namespace l1t::demo::codecs {
   std::array<std::vector<ap_uint<96>>, 18> getTrackWords(const edm::View<TTTrack<Ref_Phase2TrackerDigi_>>& tracks) {
     std::array<std::vector<ap_uint<96>>, 18> trackWords;
     for (const auto& track : tracks) {
-      trackWords.at((track.eta() >= 0 ? 1 : 0) + (2 * track.phiSector())).push_back(encodeTrack(track));
+      // use the sign bit of the tanL word to remove dependence on TTTrack eta member.
+      unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
+      trackWords.at(etaSector + (2 * track.phiSector())).push_back(encodeTrack(track));
     }
     return trackWords;
   }

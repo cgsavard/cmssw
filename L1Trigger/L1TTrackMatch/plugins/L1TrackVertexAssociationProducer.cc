@@ -165,7 +165,8 @@ private:
     }
     bool operator()(const TTTrackType& t) {
       //use same method as in L1Trigger/DemonstratorTools/src/codecs_tracks.cc method getTrackWords(...)
-      unsigned int gttLinkID = (t.eta() >= 0 ? 1 : 0) + (2 * t.phiSector());
+      unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
+      unsigned int gttLinkID = etaSector + (2 * t.phiSector());
       //increment the counter of processed tracks
       processedTracksPerLink_.at(gttLinkID)++;
       //fwNTrackSetsTVA_ tracks may be processed in firmware, no more (<= used intentionally to match the off-by-one indexing versus LibHLS)
@@ -476,12 +477,12 @@ void L1TrackVertexAssociationProducer::produce(edm::StreamID, edm::Event& iEvent
   } //end loop over input converted tracks
 
   if (processSimulatedTracks_) {
-    linkLimitSel.print(); //FIXME
+    // linkLimitSel.print(); //FIXME
     iEvent.put(std::move(vTTTrackAssociatedOutput), outputCollectionName_);
   }
 
   if (processEmulatedTracks_) {
-    linkLimitSelEmu.print(); //FIXME
+    // linkLimitSelEmu.print(); //FIXME
     iEvent.put(std::move(vTTTrackAssociatedEmulationOutput), outputCollectionName_ + "Emulation");
     // test making the unconverted, fully-filled vertices
     for (unsigned int ive = 0; ive < nOutputVerticesEmulation; ive++) {
