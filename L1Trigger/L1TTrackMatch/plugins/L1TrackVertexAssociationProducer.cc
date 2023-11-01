@@ -28,7 +28,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <iostream>  //FIXME
 
 // Xilinx HLS includes
 #include <ap_fixed.h>
@@ -155,6 +154,7 @@ private:
       //create a counter for all 18 GTT input links, 2 per phiSector of the TrackFindingProcessors
       for (int idx = 0; idx < 18; idx++) {
         processedTracksPerLink_.push_back(0);
+        truncatedTracksPerLink_.push_back(0);
       }
     }
     TTTrackWordLinkLimitSelector(const edm::ParameterSet& cfg)
@@ -168,19 +168,32 @@ private:
       //increment the counter of processed tracks
       processedTracksPerLink_.at(gttLinkID)++;
       //fwNTrackSetsTVA_ tracks may be processed in firmware, no more (<= used intentionally to match the off-by-one indexing versus LibHLS)
+      if ((processedTracksPerLink_[gttLinkID] > fwNTrackSetsTVA_) && (t.getValidWord()))
+        truncatedTracksPerLink_[gttLinkID]++;
       return processedTracksPerLink_[gttLinkID] <= fwNTrackSetsTVA_;
     }
-    void print() {
-      std::cout << "Processed track link counters:\t[";
+    void log() {
+      edm::LogInfo log("L1TrackVertexAssociationProducer");
+      log << "Processed track link counters:\t[";
       for (int idx = 0; idx < 18; idx++) {
-        std::cout << processedTracksPerLink_.at(idx) << ", ";
+        if (idx > 0)
+          log << ", ";
+        log << processedTracksPerLink_.at(idx);
       }
-      std::cout << "]" << std::endl;
+      log << "]\n";
+      log << "Truncated track link counters:\t[";
+      for (int idx = 0; idx < 18; idx++) {
+        if (idx > 0)
+          log << ", ";
+        log << truncatedTracksPerLink_.at(idx);
+      }
+      log << "]\n";
     }
 
   private:
     unsigned int fwNTrackSetsTVA_;
     std::vector<unsigned int> processedTracksPerLink_;
+    std::vector<unsigned int> truncatedTracksPerLink_;
   };
 
   // ----------member data ---------------------------
@@ -434,7 +447,7 @@ void L1TrackVertexAssociationProducer::produce(edm::StreamID, edm::Event& iEvent
     const auto& track = l1TracksHandle->at(i);
     l1t::VertexWord::vtxsumpt_t tkpt = 0;
     tkpt.V = track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kRinvMSB - 1,
-				  TTTrack_TrackWord::TrackBitLocations::kRinvLSB);
+                                  TTTrack_TrackWord::TrackBitLocations::kRinvLSB);
     l1t::VertexWord::vtxsumpt_t pt_tmp = tkpt;
     if (processSimulatedTracks_) {
       // Limit the number of processed tracks according to the firmware capability: must be run on non-selected tracks (i.e. GTTConverted tracks)
@@ -448,7 +461,7 @@ void L1TrackVertexAssociationProducer::produce(edm::StreamID, edm::Event& iEvent
       if (passLinkLimit && passSelection && deltaZSel(track, leadingVertex)) {
         vTTTrackAssociatedOutput->push_back(TTTrackRef(l1TracksHandle, i));
       }
-    } //end if (processSimulatedTracks_)
+    }  //end if (processSimulatedTracks_)
     if (processEmulatedTracks_) {
       // Limit the number of processed tracks according to the firmware capability: must be run on non-selected tracks (i.e. GTTConverted tracks)
       bool passLinkLimitEmu = linkLimitSelEmu(track);
@@ -459,40 +472,40 @@ void L1TrackVertexAssociationProducer::produce(edm::StreamID, edm::Event& iEvent
       bool passSelectionEmu = (itrEmu != l1SelectedTracksEmulationHandle->end());
       // Associated tracks based on the bitwise accurate TTTrack_TrackWord
       if (passLinkLimitEmu && passSelectionEmu) {
-	//In HLS this loop could be unrolled
-	for (unsigned int ive = 0; ive < nOutputVerticesEmulation; ive++) {
-	  if (deltaZSelEmu(track, l1VerticesEmulationHandle->at(ive))) {
-	    if (ive == 0)
-	      vTTTrackAssociatedEmulationOutput->push_back(TTTrackRef(l1TracksHandle, i));
-	    l1VerticesEmulationNTracksIn[ive]++;
-	    l1VerticesEmulationAssociatedSumPt[ive] += pt_tmp;
-	  }
-	  else
-	    l1VerticesEmulationNTracksOut[ive]++;
-	} //end loop over emulation vertices
-      } //end block for satisfying LinkLimitEmu and SelectionEmu criteria
-    } //end if (processEmulatedTracks_)
-  } //end loop over input converted tracks
+        //In HLS this loop could be unrolled
+        for (unsigned int ive = 0; ive < nOutputVerticesEmulation; ive++) {
+          if (deltaZSelEmu(track, l1VerticesEmulationHandle->at(ive))) {
+            if (ive == 0)
+              vTTTrackAssociatedEmulationOutput->push_back(TTTrackRef(l1TracksHandle, i));
+            l1VerticesEmulationNTracksIn[ive]++;
+            l1VerticesEmulationAssociatedSumPt[ive] += pt_tmp;
+          } else
+            l1VerticesEmulationNTracksOut[ive]++;
+        }  //end loop over emulation vertices
+      }    //end block for satisfying LinkLimitEmu and SelectionEmu criteria
+    }      //end if (processEmulatedTracks_)
+  }        //end loop over input converted tracks
 
   if (processSimulatedTracks_) {
-    // linkLimitSel.print(); //FIXME
     iEvent.put(std::move(vTTTrackAssociatedOutput), outputCollectionName_);
   }
 
   if (processEmulatedTracks_) {
-    // linkLimitSelEmu.print(); //FIXME
     iEvent.put(std::move(vTTTrackAssociatedEmulationOutput), outputCollectionName_ + "Emulation");
     // test making the unconverted, fully-filled vertices
     for (unsigned int ive = 0; ive < nOutputVerticesEmulation; ive++) {
       loopEmulationVertex = l1VerticesEmulationHandle->at(ive);
-      vL1UnconvertedVerticesEmulationOutput->emplace_back(l1t::VertexWord::vtxvalid_t(loopEmulationVertex.validWord()),
-							  l1t::VertexWord::vtxz0_t(loopEmulationVertex.z0Word()),
-							  l1t::VertexWord::vtxmultiplicity_t(l1VerticesEmulationNTracksIn[ive]),
-							  l1t::VertexWord::vtxsumpt_t(l1VerticesEmulationAssociatedSumPt[ive]),
-							  l1t::VertexWord::vtxquality_t(0),
-							  l1t::VertexWord::vtxinversemult_t(l1VerticesEmulationNTracksOut[ive]),
-							  l1t::VertexWord::vtxunassigned_t(0));
-    } //end loop over emulation vertices
+      vL1UnconvertedVerticesEmulationOutput->emplace_back(
+          l1t::VertexWord::vtxvalid_t(loopEmulationVertex.validWord()),
+          l1t::VertexWord::vtxz0_t(loopEmulationVertex.z0Word()),
+          l1t::VertexWord::vtxmultiplicity_t(l1VerticesEmulationNTracksIn[ive]),
+          l1t::VertexWord::vtxsumpt_t(l1VerticesEmulationAssociatedSumPt[ive]),
+          l1t::VertexWord::vtxquality_t(0),
+          l1t::VertexWord::vtxinversemult_t(l1VerticesEmulationNTracksOut[ive]),
+          l1t::VertexWord::vtxunassigned_t(0));
+    }  //end loop over emulation vertices
+    if (debug_ >= 2)
+      linkLimitSelEmu.log();
     iEvent.put(std::move(vL1UnconvertedVerticesEmulationOutput), outputVertexCollectionName_ + "Emulation");
   }
 
