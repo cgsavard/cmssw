@@ -15,6 +15,13 @@
 #include "DataFormats/L1TrackTrigger/interface/TTTypes.h"
 
 namespace l1t::demo::codecs {
+  //function to get the gttLinkID from the TrackFindingProcessors
+  template<typename T>
+  unsigned int gttLinkID(T track) {
+    // use the sign bit of the tanL word to remove dependence on TTTrack eta member.
+    unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
+    return etaSector + (2 * track.phiSector());
+  }
 
   // Return true if a track is contained within a collection
   bool trackInCollection(const edm::Ref<std::vector<TTTrack<Ref_Phase2TrackerDigi_>>>&,

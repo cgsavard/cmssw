@@ -24,9 +24,7 @@ namespace l1t::demo::codecs {
   std::array<std::vector<ap_uint<96>>, 18> getTrackWords(const edm::View<TTTrack<Ref_Phase2TrackerDigi_>>& tracks) {
     std::array<std::vector<ap_uint<96>>, 18> trackWords;
     for (const auto& track : tracks) {
-      // use the sign bit of the tanL word to remove dependence on TTTrack eta member.
-      unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
-      trackWords.at(etaSector + (2 * track.phiSector())).push_back(encodeTrack(track));
+      trackWords.at(gttLinkID(track)).push_back(encodeTrack(track));
     }
     return trackWords;
   }
@@ -41,10 +39,9 @@ namespace l1t::demo::codecs {
       edm::Ref<std::vector<TTTrack<Ref_Phase2TrackerDigi_>>> referenceTrackRef(referenceTracks, itrack);
 
       if (trackInCollection(referenceTrackRef, tracks)) {
-        trackWords.at((referenceTrack.eta() >= 0 ? 1 : 0) + (2 * referenceTrack.phiSector()))
-            .push_back(encodeTrack(referenceTrack));
+        trackWords.at(gttLinkID(referenceTrack)).push_back(encodeTrack(referenceTrack));
       } else {
-        trackWords.at((referenceTrack.eta() >= 0 ? 1 : 0) + (2 * referenceTrack.phiSector())).push_back(ap_uint<96>(0));
+        trackWords.at(gttLinkID(referenceTrack)).push_back(ap_uint<96>(0));
       }
     }
     return trackWords;
