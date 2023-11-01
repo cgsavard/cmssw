@@ -26,6 +26,12 @@ namespace l1t::demo::codecs {
     return etaSector + (2 * track.phiSector());
   }
 
+  static inline std::pair<unsigned int, unsigned int> sectorsEtaPhiFromGTTLinkID(unsigned int id) {
+    unsigned int etaSector = (id % 2);
+    unsigned int phiSector = (static_cast<unsigned int>(id) - etaSector) / 2;
+    return std::pair<unsigned int, unsigned int>(etaSector, phiSector);
+  }
+
   // Return true if a track is contained within a collection
   bool trackInCollection(const edm::Ref<std::vector<TTTrack<Ref_Phase2TrackerDigi_>>>&,
                          const edm::Handle<edm::RefVector<std::vector<TTTrack<Ref_Phase2TrackerDigi_>>>>&);
