@@ -16,10 +16,13 @@
 
 namespace l1t::demo::codecs {
   //function to get the gttLinkID from the TrackFindingProcessors
-  template<typename T>
+  template <typename T>
   unsigned int gttLinkID(T track) {
     // use the sign bit of the tanL word to remove dependence on TTTrack eta member.
-    unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB, TTTrack_TrackWord::TrackBitLocations::kTanlMSB) ? 0 : 1);
+    unsigned int etaSector = (track.getTrackWord()(TTTrack_TrackWord::TrackBitLocations::kTanlMSB,
+                                                   TTTrack_TrackWord::TrackBitLocations::kTanlMSB)
+                                  ? 0
+                                  : 1);
     return etaSector + (2 * track.phiSector());
   }
 
