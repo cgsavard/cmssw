@@ -411,7 +411,6 @@ void L1TrackVertexAssociationProducer::produce(edm::StreamID, edm::Event& iEvent
   iEvent.getByToken(l1TracksToken_, l1TracksHandle);
   size_t nOutputApproximate = l1TracksHandle->size();
 
-  // test adding the nTracksIn and nTracksOut, and updating the sumPt fields of processed vertices
   if (processSimulatedTracks_) {
     iEvent.getByToken(l1SelectedTracksToken_, l1SelectedTracksHandle);
     iEvent.getByToken(l1VerticesToken_, l1VerticesHandle);
