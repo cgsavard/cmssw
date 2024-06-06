@@ -13,6 +13,7 @@ L1TrackQuality::L1TrackQuality(const edm::ParameterSet& qualityParams) : useHPH_
   // Unpacks EDM parameter set itself to save unecessary processing within TrackProducers
   setModel(qualityParams.getParameter<edm::FileInPath>("model"),
            qualityParams.getParameter<std::vector<std::string>>("featureNames"));
+  runTime_ = std::make_unique<cms::Ort::ONNXRuntime>(this->model_.fullPath()); 
 }
 
 std::vector<float> L1TrackQuality::featureTransform(TTTrack<Ref_Phase2TrackerDigi_>& aTrack,
@@ -61,6 +62,7 @@ std::vector<float> L1TrackQuality::featureTransform(TTTrack<Ref_Phase2TrackerDig
   float tmp_trk_phi = aTrack.phi();
   float tmp_trk_eta = aTrack.eta();
   float tmp_trk_tanl = aTrack.tanL();
+  float tmp_trk_d0 = aTrack.d0();
 
   // -------- fill the feature map ---------
 
@@ -74,7 +76,8 @@ std::vector<float> L1TrackQuality::featureTransform(TTTrack<Ref_Phase2TrackerDig
   feature_map["chi2rphi_bin"] = tmp_trk_chi2rphi_bin;
   feature_map["chi2rz_bin"] = tmp_trk_chi2rz_bin;
   feature_map["tanl"] = tmp_trk_tanl;
-
+  feature_map["d0"] = tmp_trk_d0;
+  
   // fill tensor with track params
   transformedFeatures.reserve(featureNames.size());
   for (const std::string& feature : featureNames)
@@ -91,6 +94,31 @@ void L1TrackQuality::setL1TrackQuality(TTTrack<Ref_Phase2TrackerDigi_>& aTrack) 
   std::vector<float> inputs = featureTransform(aTrack, this->featureNames_);
   std::vector<float> output = bdt.decision_function(inputs);
   aTrack.settrkMVA1(1. / (1. + exp(-output.at(0))));
+}
+
+void L1TrackQuality::setL1TrackQualityDisp(TTTrack<Ref_Phase2TrackerDigi_>& aTrack) {
+      // Setup ONNX input and output names and arrays
+    std::vector<std::string> ortinput_names;
+    std::vector<std::string> ortoutput_names;
+
+    cms::Ort::FloatArrays ortinput;
+    cms::Ort::FloatArrays ortoutputs;
+
+    std::vector<float> Transformed_features = featureTransform(aTrack, this->featureNames_);
+
+    ortinput_names.push_back("feature_input");
+    ortoutput_names = runTime_->getOutputNames();
+
+    //ONNX runtime recieves a vector of vectors of floats so push back the input
+    // vector of float to create a 1,1,21 ortinput
+    ortinput.push_back(Transformed_features);
+
+    // batch_size 1 as only one set of transformed features is being processed
+    int batch_size = 1;
+    // Run classification
+    ortoutputs = runTime_->run(ortinput_names, ortinput, {}, ortoutput_names, batch_size);
+
+    aTrack.settrkMVA2(ortoutputs[1][1]); // set second MVA variable with disp bdt
 }
 
 float L1TrackQuality::runEmulatedTQ(std::vector<ap_fixed<10, 5>> inputFeatures) {
