@@ -8,7 +8,8 @@ TrackQualityParams = cms.PSet(# This emulation GBDT is optimised for the HYBRID_
                                                           "nlaymiss_interior", "chi2rphi_bin", "chi2rz_bin"]),
                               tqemu_TanlScale = cms.double( 128.0),
                               tqemu_Z0Scale = cms.double( 64.0 ),
-                              )
+    isDisp = cms.bool(False),
+)
 
 
 TrackQualityDispParams = cms.PSet(model = cms.FileInPath("L1Trigger/TrackTrigger/data/clf_GBDT_newbin_disp_xgb.onnx"),
@@ -18,4 +19,5 @@ TrackQualityDispParams = cms.PSet(model = cms.FileInPath("L1Trigger/TrackTrigger
                                                           "d0" ]),
                               tqemu_TanlScale = cms.double( 128.0),
                               tqemu_Z0Scale = cms.double( 64.0 ),
-                              )
+                                  isDisp = cms.bool(True),
+)

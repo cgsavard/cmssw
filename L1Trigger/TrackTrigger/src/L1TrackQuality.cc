@@ -13,7 +13,10 @@ L1TrackQuality::L1TrackQuality(const edm::ParameterSet& qualityParams) : useHPH_
   // Unpacks EDM parameter set itself to save unecessary processing within TrackProducers
   setModel(qualityParams.getParameter<edm::FileInPath>("model"),
            qualityParams.getParameter<std::vector<std::string>>("featureNames"));
-  runTime_ = std::make_unique<cms::Ort::ONNXRuntime>(this->model_.fullPath()); 
+
+  bool isDisp_ = qualityParams.getParameter<bool>("isDisp");
+  if (isDisp_==true)
+    runTime_ = std::make_unique<cms::Ort::ONNXRuntime>(this->model_.fullPath()); 
 }
 
 std::vector<float> L1TrackQuality::featureTransform(TTTrack<Ref_Phase2TrackerDigi_>& aTrack,
