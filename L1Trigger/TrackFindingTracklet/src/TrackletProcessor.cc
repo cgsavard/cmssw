@@ -16,6 +16,14 @@
 using namespace std;
 using namespace trklet;
 
+//debug output info in txt file for testing
+#include <fstream>
+std::ofstream outfile1("TP_output.txt");
+std::vector<std::pair<std::string, std::string>> test_pairs;
+unsigned int count_duplicates1[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+unsigned int count_total1[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+unsigned int nonant_counter1 = 0; //44 TPD instances per nonant
+
 TrackletProcessor::TrackletProcessor(string name, Settings const& settings, Globals* globals)
     : TrackletCalculatorBase(name, settings, globals),
       tebuffer_(CircularBuffer<TEData>(3), 0, 0, 0, 0),
@@ -84,12 +92,12 @@ TrackletProcessor::TrackletProcessor(string name, Settings const& settings, Glob
 
   if (layerdisk1_ == LayerDisk::L1 || layerdisk1_ == LayerDisk::L2 || layerdisk1_ == LayerDisk::L3 ||
       layerdisk1_ == LayerDisk::L5 || layerdisk1_ == LayerDisk::D1 || layerdisk1_ == LayerDisk::D3) {
-    innerTable_.initVMRTable(layerdisk1_, TrackletLUT::VMRTableType::inner);  //projection to next layer/disk
+    innerTable_.initVMRTable(layerdisk1_, TrackletLUT::VMRTableType::inner, false);  //projection to next layer/disk
   }
-
+    
   if (layerdisk1_ == LayerDisk::L1 || layerdisk1_ == LayerDisk::L2) {
     innerOverlapTable_.initVMRTable(layerdisk1_,
-                                    TrackletLUT::VMRTableType::inneroverlap);  //projection to disk from layer
+                                    TrackletLUT::VMRTableType::inneroverlap, false);  //projection to disk from layer
   }
 
   // set TC index
@@ -271,6 +279,10 @@ void TrackletProcessor::execute(unsigned int iSector, double phimin, double phim
 
   bool tebuffernearfull;
 
+  //debug
+  std::vector<std::pair<const Stub*, const Stub*>> tp_triplets;
+  int tp_dups = 0;
+  
   for (unsigned int istep = 0; istep < maxStep_; istep++) {
     // These print statements are not on by defaul but can be enabled for the
     // comparison with HLS code to track differences.
@@ -333,8 +345,24 @@ void TrackletProcessor::execute(unsigned int iSector, double phimin, double phim
         accept = overlapSeeding(outerFPGAStub, outerStub, innerFPGAStub, innerStub);
       }
 
-      if (accept)
+      if (accept){
         countsel++;
+
+	//debug
+	count_total1[iSeed_]++;
+	std::pair<std::string, std::string> test_tuple (innerFPGAStub->strbare(),
+							 outerFPGAStub->strbare());
+	int cnt = count(test_pairs.begin(), test_pairs.end(), test_tuple);
+	if (cnt > 0){ // remove element if found, then see what's left at the end
+          count_duplicates1[iSeed_]++;
+	  //cout << "duplicate in " << iSeed_ << ": " << innerFPGAStub->strbare() << " " << outerFPGAStub->strbare() << endl;
+	}
+	test_pairs.push_back(test_tuple);
+
+        int cnt_tp = count(tp_triplets.begin(), tp_triplets.end(), stubpair);
+	if (cnt_tp > 0)
+	  tp_dups++;
+      }
 
       if (trackletpars_->nTracklets() >= settings_.ntrackletmax()) {
         edm::LogVerbatim("Tracklet") << "Will break on number of tracklets in " << getName();
@@ -385,6 +413,11 @@ void TrackletProcessor::execute(unsigned int iSector, double phimin, double phim
 
       const Stub* stub = innerallstubs_[imem]->getStub(istub);
 
+      //debug 111111001110110001101010010001001100 001010111001011010010010001011100101
+      // 110111000010110010011100100111101010 001010110010110001000100101011011000
+      //if (stub->strbare() == "110111000010110010011100100111101010")
+      //cout << "stub 110111000010110010011100100111101010 in mem " << innerallstubs_[imem]->getName() << " at " << istub << endl;
+      
       if (settings_.debugTracklet()) {
         edm::LogVerbatim("Tracklet") << getName() << " Have stub in " << innerallstubs_[imem]->getName();
       }
@@ -517,7 +550,24 @@ void TrackletProcessor::execute(unsigned int iSector, double phimin, double phim
       break;
     }
   }
-
+  
+  //debug
+  nonant_counter1++;
+  outfile1.open("TP_output.txt", std::ios_base::app);
+  outfile1 << "TP " << iSeed_ << " " << iTC_ << " " << countteall << " " << countsel << " " << tp_dups << "\n";
+  if (nonant_counter1 == 44){ //44 modules per nonant
+    outfile1 << "nonant " << iSector_;
+    for (int i = 0; i < 8; i++){
+      outfile1 << " " << count_duplicates1[i] << " " << count_total1[i];
+    }
+    outfile1 << "\n";
+    std::fill(count_duplicates1,count_duplicates1+8,0);
+    std::fill(count_total1,count_total1+8,0);
+    nonant_counter1 = 0;
+    test_pairs.clear();
+  }
+  outfile1.close();
+  
   //
   // Done with processing - collect performance statistics
   //

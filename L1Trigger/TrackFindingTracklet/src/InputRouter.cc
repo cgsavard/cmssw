@@ -72,6 +72,14 @@ void InputRouter::execute() {
       if (layerphireg == irstubmem.first) {
         irstubmem.second->addStub(stub);
         iadd++;
+	// 100111011101101010000001100100101000 out stub
+	// 100010110010110010100110011101010111 mid stub
+	// 110111000010110010011100100111101010 inner stub for TP
+	/*if (stub->strbare() == "110111000010110010011100100111101010"){
+	  cout << "IR: found 110111000010110010011100100111101010 in mem " << dtcstubs_->getName()
+	       << " going into mem " << irstubmem.second->getName()
+	       << " at " << i << endl;
+	       }*/
       }
     }
     if (!(settings_.reduced()))

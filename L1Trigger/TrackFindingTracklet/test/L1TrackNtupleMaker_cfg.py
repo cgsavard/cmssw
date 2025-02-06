@@ -23,7 +23,7 @@ GEOMETRY = "D98"
 # 'HYBRID_NEWKF' (baseline, 4par fit, with bit-accurate KF emulation),
 # 'HYBRID_REDUCED' to use the "Summer Chain" configuration with reduced inputs.
 # (Or legacy algos 'TMTT' or 'TRACKLET').
-L1TRKALGO = 'HYBRID'
+L1TRKALGO = 'HYBRID_DISPLACED'
 
 WRITE_DATA = False
 
@@ -58,7 +58,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 # input and output
 ############################################################
 
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(100))
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(1))
 
 #--- To use MCsamples scripts, defining functions get*data*() for easy MC access,
 #--- follow instructions in https://github.com/cms-L1TK/MCsamples
@@ -80,7 +80,10 @@ if GEOMETRY == "D98":
   #dataName="/RelValTTbar_14TeV/CMSSW_14_0_0_pre2-PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/GEN-SIM-DIGI-RAW"
   #inputMC=getCMSdata(dataName)
 
-  inputMC = ["/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root"]
+  inputMC = [
+      "file:dispsusy200pu_test.root"]
+      #"/store/relval/CMSSW_14_0_0_pre0_ROOT630/RelValDisplacedSUSY_stopToB_M_800_500mm_13/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_2026D98PU200-v1/2590000/00adec65-71f5-4601-83c6-a2961d187cae.root"]
+      #"/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root"]
 
 elif GEOMETRY == "D88":
 
@@ -141,7 +144,7 @@ process.load('L1Trigger.TrackerDTC.ProducerED_cff')
 
 process.dtc = cms.Path(process.TrackerDTCProducer)#*process.TrackerDTCAnalyzer)
 # Throw error if reading MC produced with different stub window sizes.
-process.TrackerDTCProducer.CheckHistory = True
+#process.TrackerDTCProducer.CheckHistory = True
 
 ############################################################
 # L1 tracking

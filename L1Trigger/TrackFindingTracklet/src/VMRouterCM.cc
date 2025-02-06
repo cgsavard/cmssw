@@ -277,8 +277,13 @@ void VMRouterCM::execute(unsigned int) {
         if (settings_.debugTracklet()) {
           edm::LogVerbatim("Tracklet") << getName() << " adding stub to " << allstub.second->getName();
         }
+	/*if (stub->strbare() == "110111000010110010011100100111101010"){
+	  cout << allstub.first << endl;
+	  cout << "VMR: stub 110111000010110010011100100111101010 in mem " << stubinput->getName()
+	       << " going into mem " << allstub.second->getName() << endl;
+	       }*/
 
-        allstub.second->addStub(stub);
+	allstub.second->addStub(stub);
       }
 
       //Fill all the ME VM memories
@@ -457,7 +462,15 @@ void VMRouterCM::execute(unsigned int) {
           if (!isTripletSeed)
             ivmstubTEPHI.vmstubmem[0][l]->addVMStub(tmpstub, bin, ivmte);
           else {
-            if (inner == 0) {
+	    // 100111011101101010000001100100101000 out stub
+	    // 100010110010110010100110011101010111 mid stub
+	    // 110111000010110010011100100111101010 inner stub for TP
+	    /*if (stub->strbare() == "110111000010110010011100100111101010"){
+	      cout << "VMR: stub 110111000010110010011100100111101010 in mem " << stubinput->getName()
+		   << " going into mem " << ivmstubTEPHI.vmstubmem[ivmte][l]->getName()
+		   << " at " << ivmte << " " << l << endl;
+		   }*/
+	    if (inner == 0) {
               ivmstubTEPHI.vmstubmem[ivmte][l]->addVMStub(tmpstub);
             } else {
               ivmstubTEPHI.vmstubmem[ivmte][l]->addVMStub(tmpstub, bin, 0, false);

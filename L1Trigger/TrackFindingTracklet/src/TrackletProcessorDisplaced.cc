@@ -25,6 +25,14 @@ using namespace trklet;
 //
 // Update: Claire Savard, Nov. 2024
 
+//debug output info in txt file for testing
+#include <fstream>
+std::ofstream outfile("TPD_output.txt");
+std::vector<std::tuple<std::string, std::string, std::string>> test_triplets;
+unsigned int count_duplicates[4] = {0, 0, 0, 0};
+unsigned int count_total[4] = {0, 0, 0, 0};
+unsigned int nonant_counter = 0; //40 TPD instances per nonant
+
 TrackletProcessorDisplaced::TrackletProcessorDisplaced(string name, Settings const& settings, Globals* globals)
     : TrackletCalculatorDisplaced(name, settings, globals),
       trpbuffer_(CircularBuffer<TrpEData>(3), 0, 0, 0, 0),
@@ -192,6 +200,10 @@ void TrackletProcessorDisplaced::execute(unsigned int iSector, double phimin, do
   bool goodtrpdata__ = false;
   bool goodtrpdata___ = false;
 
+  //debug
+  std::vector<std::tuple<const Stub*, const Stub*, const Stub*>> tpd_triplets;
+  int tpd_dups = 0;
+  
   bool trpbuffernearfull;
   for (unsigned int istep = 0; istep < maxStep_; istep++) {
     CircularBuffer<TrpEData>& trpdatabuffer = std::get<0>(trpbuffer_);
@@ -237,8 +249,30 @@ void TrackletProcessorDisplaced::execute(unsigned int iSector, double phimin, do
       else if (iSeed_ == Seed::D1D2L2)
         accept = DDLSeeding(innerFPGAStub, innerStub, middleFPGAStub, middleStub, outerFPGAStub, outerStub);
 
-      if (accept)
+      if (accept){
         countsel++;
+	
+	//debug
+	count_total[iSeed_ - 8]++;
+	std::tuple<std::string, std::string, std::string> test_tuple (innerFPGAStub->strbare(),
+								      middleFPGAStub->strbare(),
+	      							      outerFPGAStub->strbare());
+	int cnt = count(test_triplets.begin(), test_triplets.end(), test_tuple);
+	if (cnt > 0){ // remove element if found, then see what's left at the end
+	  /*std::cout << "DUPLICATE SEED: " << iSeed_ << " " << innerFPGAStub->strbare() << " " << middleFPGAStub->strbare()
+		    << " " << outerFPGAStub->strbare()
+		    << " " << getName() << std::endl;*/
+	  count_duplicates[iSeed_ - 8]++;
+	}
+	test_triplets.push_back(test_tuple);
+	
+	int cnt_tpd = count(tpd_triplets.begin(), tpd_triplets.end(), stubtriplet);
+	if (cnt_tpd > 0){
+	  tpd_dups++;
+	}
+	tpd_triplets.push_back(stubtriplet);
+	
+      }
 
       if (trackletpars_->nTracklets() >= settings_.ntrackletmax()) {
         edm::LogVerbatim("Tracklet") << "Will break on number of tracklets in " << getName();
@@ -280,7 +314,14 @@ void TrackletProcessorDisplaced::execute(unsigned int iSector, double phimin, do
 
     if ((!trpbuffernearfull) && midmem < midmemend && istub < middleallstubs_[midmem]->nStubs()) {
       const Stub* stub = middleallstubs_[midmem]->getStub(istub);
-
+      
+      // 00010011010011001011010101101 011110110001001110000101100101111110 100111011101101010000001100100101000 example of seed 10 where third stub duplicated in VMSTE_L3PHIb7n1 all the way from input router
+      // 110000010111000011011110100101110001 100010110010110010100110011101010111 001111000101010010010010111001011000
+      // 001000000110110001011101000111110010 100000110110010110110101011000101111 001011010001000010101100100111111001
+      /*if (stub->strbare() == "100011100010110110111001111001011111"){
+	cout << "mid stub from mem " << middleallstubs_[midmem]->getName() << " at " << istub << endl;
+	}*/
+      
       if (settings_.debugTracklet()) {
         edm::LogVerbatim("Tracklet") << "In " << getName() << " have middle stub";
       }
@@ -401,6 +442,23 @@ void TrackletProcessorDisplaced::execute(unsigned int iSector, double phimin, do
       break;
     }
   }
+
+  //debug
+  nonant_counter++;
+  outfile.open("TPD_output.txt", std::ios_base::app);
+  outfile << "TPD " << iSeed_ << " " << iTC_ << " " << countall << " " << countsel << " " << tpd_dups << "\n";
+  if (nonant_counter == 40){ //40 modules per nonant
+    outfile << "nonant " << iSector_ << " "
+	    << count_duplicates[0] << " " << count_total[0] << " "
+	    << count_duplicates[1] << " " << count_total[1] << " "
+	    << count_duplicates[2] << " " << count_total[2] << " "
+	    << count_duplicates[3] << " " << count_total[3] << "\n";
+    std::fill(count_duplicates,count_duplicates+4,0);
+    std::fill(count_total,count_total+4,0);
+    nonant_counter = 0;
+    test_triplets.clear();
+  }
+  outfile.close();
 
   if (settings_.writeMonitorData("TPD")) {
     globals_->ofstream("trackletprocessordisplaced.txt")

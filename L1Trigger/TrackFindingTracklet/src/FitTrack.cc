@@ -13,8 +13,12 @@
 using namespace std;
 using namespace trklet;
 
+// debug
+#include <fstream>
+std::ofstream outfile_ft("fitTrack_output.txt");
+
 FitTrack::FitTrack(string name, Settings const& settings, Globals* global)
-    : ProcessBase(name, settings, global), trackfit_(nullptr) {}
+  : ProcessBase(name, settings, global), trackfit_(nullptr) {}
 
 void FitTrack::addOutput(MemoryBase* memory, string output) {
   if (settings_.writetrace()) {
@@ -879,6 +883,10 @@ std::vector<Tracklet*> FitTrack::orderedMatches(vector<FullMatchMemory*>& fullma
 void FitTrack::execute(deque<string>& streamTrackRaw,
                        vector<deque<StubStreamData>>& streamsStubRaw,
                        unsigned int iSector) {
+  //debug
+  outfile_ft.open("fitTrack_output.txt", std::ios_base::app);
+  outfile_ft << getName() << endl;
+  
   // merge
   const std::vector<Tracklet*>& matches1 = orderedMatches(fullmatch1_);
   const std::vector<Tracklet*>& matches2 = orderedMatches(fullmatch2_);
@@ -1005,6 +1013,16 @@ void FitTrack::execute(deque<string>& streamTrackRaw,
         nMatchesUniq >= 2) {  //For seeds index >=8 (triplet seeds), there are three stubs associated from start.
       countFit++;
 
+      //debug
+      int temp_seed = bestTracklet->getISeed();
+      outfile_ft << temp_seed << " " << bestTracklet->innerFPGAStub()->strbare();
+      if (temp_seed < 8) {
+	outfile_ft << " 0";
+      } else {
+	outfile_ft << " " << bestTracklet->middleFPGAStub()->strbare();
+      }
+      outfile_ft << " " << bestTracklet->outerFPGAStub()->strbare() << endl;
+      
 #ifdef USEHYBRID
       if (settings_.fakefit()) {
         trackFitFake(bestTracklet, trackstublist, stubidslist);
@@ -1091,6 +1109,9 @@ void FitTrack::execute(deque<string>& streamTrackRaw,
 
   } while (bestTracklet != nullptr && countAll < settings_.maxStep("TB"));
 
+  //debug
+  outfile_ft.close();
+  
   if (settings_.writeMonitorData("FT")) {
     globals_->ofstream("fittrack.txt") << getName() << " " << countAll << " " << countFit << endl;
   }
